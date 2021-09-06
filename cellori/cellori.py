@@ -185,7 +185,7 @@ class Cellori:
         import matplotlib
         import matplotlib.pyplot as plt
 
-        from imshowfast import imshow
+        from cellori.imshowfast import imshow
         from matplotlib.widgets import Button,Slider,TextBox
         from matplotlib.patches import Rectangle
         from PyQt5 import QtWidgets
