@@ -76,8 +76,8 @@ class Cellori:
 
                 if not np.array_equal(self.count_ax2.viewLim.get_points(),self.count_viewlim):
                     
-                    self.count_ax2.set_xlim(self.count_viewlim[0])
-                    self.count_ax2.set_ylim(self.count_viewlim[1])
+                    self.count_ax2.set_xlim(self.count_viewlim[1])
+                    self.count_ax2.set_ylim(self.count_viewlim[0])
 
             if len(self.count_ax2.collections) > 0:
                     self.count_ax2.collections[-1].remove()
