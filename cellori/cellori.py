@@ -61,7 +61,7 @@ class Cellori:
                 self.count_ax2.callbacks.connect('ylim_changed',crop_counts)
                 self.count_ax1_image = imshow(self.count_ax1,self.image_adjusted,vmin=0,vmax=255,cmap="gray")
                 self.count_ax2_image = imshow(self.count_ax2,self.image_adjusted,vmin=0,vmax=255,cmap="gray")
-                self.count_viewlim = self.count_ax2.viewLim.get_points().copy()
+                self.count_viewlim = np.rot90(self.count_ax2.viewLim.get_points().copy(),2)
 
                 plt.subplots_adjust(left=0.05,right=0.95,top=0.95,bottom=0.1)
 
@@ -76,8 +76,8 @@ class Cellori:
 
                 if not np.array_equal(self.count_ax2.viewLim.get_points(),self.count_viewlim):
                     
-                    self.count_ax2.set_xlim(self.count_viewlim[1])
-                    self.count_ax2.set_ylim(self.count_viewlim[0])
+                    self.count_ax2.set_xlim(self.count_viewlim[0])
+                    self.count_ax2.set_ylim(self.count_viewlim[1])
 
             if len(self.count_ax2.collections) > 0:
                     self.count_ax2.collections[-1].remove()
