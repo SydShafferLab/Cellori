@@ -78,6 +78,8 @@ class Cellori:
                     
                     self.count_ax2.set_xlim(self.count_viewlim[0])
                     self.count_ax2.set_ylim(self.count_viewlim[1])
+                    
+                crop_counts(self.count_ax2)
 
             if len(self.count_ax2.collections) > 0:
                     self.count_ax2.collections[-1].remove()
@@ -185,7 +187,7 @@ class Cellori:
         import matplotlib
         import matplotlib.pyplot as plt
 
-        from cellori.imshowfast import imshow
+        from imshowfast import imshow
         from matplotlib.widgets import Button,Slider,TextBox
         from matplotlib.patches import Rectangle
         from PyQt5 import QtWidgets
