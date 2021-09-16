@@ -36,13 +36,20 @@ class Cellori:
             
             def crop_counts(ax):
                 
-                cropped_coords = [coord for coord in self.all_coords if ax.viewLim.x0 < coord[1] < ax.viewLim.x1 and ax.viewLim.y1 < coord[0] < ax.viewLim.y0]
+                viewlim = np.array([[ax.viewLim.y1,ax.viewLim.x0],[ax.viewLim.y0,ax.viewLim.x1]])
+                cropped_coords = self.all_coords[np.all((viewlim[0] < self.all_coords) & (self.all_coords < viewlim[1]),axis=1)]
                 ax.set_title(str(len(cropped_coords)) + " Cells")
 
             def save(event):
                 
                 save_path = QtWidgets.QFileDialog.getSaveFileName(None,"Save Coordinates",os.getcwd(),"CSV (*.csv);; Text File (*.txt)")[0]
-                np.savetxt(save_path,self.all_coords,delimiter=',')
+
+                if event.inaxes == self.ax_save_xy:
+                    coords = self._indices_to_xy(self.all_coords.copy)
+                elif event.inaxes == self.ax_save_indices:
+                    coords = self.all_coords
+                
+                np.savetxt(save_path,coords,delimiter=',')
 
             self.all_coords = self._count(self.image,float(self.sigma.text),int(self.block_size.text),float(self.nuclei_diameter.text))
 
@@ -65,9 +72,12 @@ class Cellori:
 
                 plt.subplots_adjust(left=0.05,right=0.95,top=0.95,bottom=0.1)
 
-                self.ax_save = plt.axes([0.4,0.025,0.2,0.05])
-                self.save_button = Button(self.ax_save,'Save Coordinates')
-                self.save_button.on_clicked(save)
+                self.ax_save_xy = plt.axes([0.29,0.025,0.2,0.05])
+                self.save_xy_button = Button(self.ax_save_xy,'Save XY Coordinates')
+                self.save_xy_button.on_clicked(save)
+                self.ax_save_indices = plt.axes([0.51,0.025,0.2,0.05])
+                self.save_indices_button = Button(self.ax_save_indices,'Save Array Indices')
+                self.save_indices_button.on_clicked(save)
 
             else:
 
@@ -84,8 +94,8 @@ class Cellori:
             if len(self.count_ax2.collections) > 0:
                     self.count_ax2.collections[-1].remove()
             if len(self.all_coords) > 0:
-                y,x = zip(*self.all_coords)
-                self.count_ax2.scatter(x,y,s=3,c='r')
+                print(self.all_coords.shape)
+                self.count_ax2.scatter(self.all_coords[:,1],self.all_coords[:,0],s=3,c='r')
 
             self.count_fig.canvas.draw_idle()
             self.count_fig.show()
@@ -266,16 +276,20 @@ class Cellori:
 
         plt.show()
 
-    def get_coordinates(self,sigma,block_size,nuclei_diameter):
+    def get_coordinates(self,sigma=2,block_size=7,nuclei_diameter=6,output_format='indices'):
         
         coords = self._count(self.image,sigma,block_size,nuclei_diameter)
-        coords = np.array(coords)
+
+        if output_format =='xy':
+            coords = self._indices_to_xy(coords)
+        elif output_format =='indices':
+            print("Invalid output format.")
 
         return coords
 
-    def save_coordinates(self,path,sigma,block_size,nuclei_diameter):
+    def save_coordinates(self,path,sigma=2,block_size=7,nuclei_diameter=6,output_format='xy'):
         
-        coords = self.get_coordinates(self,sigma,block_size,nuclei_diameter)
+        coords = self.get_coordinates(sigma,block_size,nuclei_diameter,output_format)
         
         np.savetxt(path,coords,delimiter=',')
 
@@ -304,4 +318,11 @@ class Cellori:
                 for coord in maxima:
                     coords.append((region.bbox[0] + coord[0],region.bbox[1] + coord[1]))
         
+        return np.array(coords)
+
+    def _indices_to_xy(self,coords):
+        
+        coords[:,0] = self.image.shape[0] - coords[:,0]
+        coords = np.fliplr(coords)
+
         return coords
