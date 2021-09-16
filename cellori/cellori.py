@@ -94,7 +94,6 @@ class Cellori:
             if len(self.count_ax2.collections) > 0:
                     self.count_ax2.collections[-1].remove()
             if len(self.all_coords) > 0:
-                print(self.all_coords.shape)
                 self.count_ax2.scatter(self.all_coords[:,1],self.all_coords[:,0],s=3,c='r')
 
             self.count_fig.canvas.draw_idle()
