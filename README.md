@@ -2,7 +2,7 @@
 A fast and robust algorithm for clustered nuclei segmentation.
 
 ## General
-The Cellori algorithm segments nuclei by applying a Gaussian filter to smoothen out background noise, calculating local thresholds to isolate the foreground, and splitting clustered nuclei via local maxima analysis.
+The Cellori algorithm segments nuclei by applying a Gaussian filter to smoothen out background noise, calculating local thresholds to isolate the foreground, and splitting clustered nuclei via local maxima analysis. Masks are obtained using the watershed algorithm.
 
 ## Installation
 
@@ -26,4 +26,4 @@ from cellori import Cellori
 Cellori(image,**kwargs).gui()
 ```
 
-Functions for getting or saving nuclei coordinates without the GUI are also available.
+GUI-independent functions for obtaining masks and coordinates are also available.
