@@ -115,10 +115,10 @@ def run_gui(Cellori):
             y_high -= offset
             offsets[3] = 0
 
-        image_crop = Cellori.image[x_low:x_high,y_low:y_high].T
+        image_crop = Cellori.image[x_low:x_high,y_low:y_high]
         coords,_ = Cellori._find_nuclei(image_crop,float(Cellori.sigma.text),int(Cellori.block_size.text),float(Cellori.nuclei_diameter.text))
 
-        viewlim = np.array([[offsets[2],offsets[0]],[y_high - y_low - offsets[3],x_high - x_low - offsets[1]]])
+        viewlim = np.array([[offsets[0],offsets[2]],[x_high - x_low - offsets[1],y_high - y_low - offsets[3]]])
 
         if len(coords) > 0:
             coords = coords[np.all((viewlim[0] < coords),axis=1) & np.all((coords < viewlim[1]),axis=1)]
@@ -129,9 +129,9 @@ def run_gui(Cellori):
                 Cellori.ax2.collections[-1].remove()
         if len(coords) > 0:
             y,x = zip(*coords)
-            x = np.add(x,Cellori.origin[1] - Cellori.preview_size / 2 - offsets[0])
-            y = np.add(y,Cellori.origin[0] - Cellori.preview_size / 2 - offsets[2])
-            Cellori.ax2.scatter(y,x,s=3,c='r')
+            x = np.add(x,Cellori.origin[0] - Cellori.preview_size / 2 - offsets[2])
+            y = np.add(y,Cellori.origin[1] - Cellori.preview_size / 2 - offsets[0])
+            Cellori.ax2.scatter(x,y,s=3,c='r')
 
     def update_parameters(parameter):
 
