@@ -104,13 +104,6 @@ class Cellori:
 
         return masks
 
-    def _indices_to_xy(self,coords):
-        
-        coords[:,0] = self.image.shape[0] - coords[:,0]
-        coords = np.fliplr(coords)
-
-        return coords
-
     def _masks_to_outlines(self,masks):
 
         regions = measure.regionprops(masks,cache=False)
@@ -126,3 +119,10 @@ class Cellori:
             outlines[vr,vc] = 1
                 
         return outlines
+
+    def _indices_to_xy(self,coords):
+        
+        coords[:,0] = self.image.shape[0] - coords[:,0]
+        coords = np.fliplr(coords)
+
+        return coords
