@@ -69,8 +69,8 @@ class Cellori:
     def _find_nuclei(self,image,sigma,block_size,nuclei_diameter):
 
         image_blurred = filters.gaussian(image,sigma,preserve_range=True)
-        adaptive_thresh = filters.threshold_local(image_blurred,block_size,method='mean',offset=-self.image_std / 10)
-        binary = image_blurred > adaptive_thresh
+        adaptive_thresh = filters.threshold_local(image_blurred,block_size,method='mean')
+        binary = image_blurred > adaptive_thresh + self.image_std / 5
 
         min_area = np.pi * (nuclei_diameter / 2) ** 2
         binary = morphology.remove_small_objects(binary,min_area)
@@ -84,14 +84,10 @@ class Cellori:
             image_crop = image_blurred[region.bbox[0]:region.bbox[2],region.bbox[1]:region.bbox[3]]
             image_crop = np.where(region.image,image_crop,0)
             
-            maxima = feature.peak_local_max(image_crop,min_distance=round(nuclei_diameter / 3))
+            maxima = feature.peak_local_max(image_crop,min_distance=round(nuclei_diameter / 3),exclude_border=False)
             
-            if len(maxima) == 0:
-                if region.bbox[0] < region.centroid[0] < region.bbox[1] & region.bbox[2] < region.centroid[1] < region.bbox[3]:
-                    coords.append(region.centroid)
-            else:
-                for coord in maxima:
-                    coords.append((region.bbox[0] + coord[0],region.bbox[1] + coord[1]))
+            for coord in maxima:
+                coords.append((region.bbox[0] + coord[0],region.bbox[1] + coord[1]))
         
         coords = np.array(coords)
 

@@ -182,14 +182,14 @@ def run_gui(Cellori):
 
     def check_origin():
 
-        if Cellori.origin[0] - Cellori.preview_size / 2 < 1:
-            Cellori.origin[0] = Cellori.preview_size / 2 + 1
-        if Cellori.origin[1] - Cellori.preview_size / 2 < 1:
-            Cellori.origin[1] = Cellori.preview_size / 2 + 1
-        if Cellori.origin[0] + Cellori.preview_size / 2 > Cellori.image.shape[1] - 1:
-            Cellori.origin[0] = Cellori.image.shape[1] - Cellori.preview_size / 2 - 1
-        if Cellori.origin[1] + Cellori.preview_size / 2 > Cellori.image.shape[0] - 1:
-            Cellori.origin[1] = Cellori.image.shape[0] - Cellori.preview_size / 2 - 1
+        if Cellori.origin[0] - Cellori.preview_size / 2 < 0.5:
+            Cellori.origin[0] = Cellori.preview_size / 2 + 0.5
+        if Cellori.origin[1] - Cellori.preview_size / 2 < 0.5:
+            Cellori.origin[1] = Cellori.preview_size / 2 + 0.5
+        if Cellori.origin[0] + Cellori.preview_size / 2 > Cellori.image.shape[1] - 0.5:
+            Cellori.origin[0] = Cellori.image.shape[1] - Cellori.preview_size / 2 - 0.5
+        if Cellori.origin[1] + Cellori.preview_size / 2 > Cellori.image.shape[0] - 0.5:
+            Cellori.origin[1] = Cellori.image.shape[0] - Cellori.preview_size / 2 - 0.5
 
     matplotlib.use('Qt5Agg')
 
