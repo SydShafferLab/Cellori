@@ -1,6 +1,6 @@
 from setuptools import setup,find_packages
 
-VERSION = "2.1"
+VERSION = "2.2"
 DESCRIPTION = "Cellori"
 LONG_DESCRIPTION = "A fast and robust algorithm for clustered nuclei segmentation."
 
@@ -13,7 +13,7 @@ setup(
     long_description_content_type="text/markdown",
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),
-    install_requires=['matplotlib','numpy','pyqt5','scikit-image','stitchwell','tifffile'],
+    install_requires=['matplotlib','numpy','opencv-python','pyqt5','scikit-image','stitchwell','tifffile'],
     keywords=["nuclei","segmentation"],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
