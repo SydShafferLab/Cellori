@@ -30,8 +30,13 @@ class Cellori:
         elif isinstance(image,np.ndarray):
             
             self.image = image
+
+        self.image = self.image.astype(np.uint16)
         
-        self.image_std = np.std(self.image)
+        global_thresh = filters.threshold_otsu(self.image)
+        foreground_mask = self.image > global_thresh
+        background = np.ma.masked_array(self.image,foreground_mask)
+        self.background_std = np.std(background)
 
     def gui(self):
 
@@ -55,7 +60,7 @@ class Cellori:
             print("Invalid coordinate format.")
             exit()
 
-        output = masks,coords if segmentation_mode == 'masks' else coords
+        output = (masks,coords) if segmentation_mode == 'masks' else coords
 
         return output
 
@@ -70,7 +75,7 @@ class Cellori:
 
         image_blurred = filters.gaussian(image,sigma,preserve_range=True)
         adaptive_thresh = filters.threshold_local(image_blurred,block_size,method='mean')
-        binary = image_blurred > adaptive_thresh + self.image_std / 5
+        binary = image_blurred > adaptive_thresh + max(self.background_std,10)
 
         min_area = np.pi * (nuclei_diameter / 2) ** 2
         binary = morphology.remove_small_objects(binary,min_area)
