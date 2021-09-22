@@ -38,6 +38,9 @@ class Cellori:
         background = np.ma.masked_array(self.image,foreground_mask)
         self.background_std = np.std(background)
 
+        self.nan_mask = np.where(self.image == 0,True,False)
+        self.exists_nan = np.any(self.nan_mask)
+
     def gui(self):
 
         from cellori.run_gui import run_gui
@@ -71,7 +74,7 @@ class Cellori:
 
         return masks,coords
 
-    def _find_nuclei(self,image,sigma,block_size,nuclei_diameter):
+    def _find_nuclei(self,image,sigma,block_size,nuclei_diameter,origin=None):
 
         image_blurred = filters.gaussian(image,sigma,preserve_range=True)
         adaptive_thresh = filters.threshold_local(image_blurred,block_size,method='mean')
@@ -86,7 +89,22 @@ class Cellori:
         coords = list()
 
         for region in regions:
-            image_crop = image_blurred[region.bbox[0]:region.bbox[2],region.bbox[1]:region.bbox[3]]
+            
+            indices = [region.bbox[0],region.bbox[2],region.bbox[1],region.bbox[3]]
+
+            if self.exists_nan:
+
+                offset = int(((block_size) - 1) / 2)
+                neighborhood_indices = [indices[0] - offset,indices[1] + offset,indices[2] - offset,indices[3] + offset]
+                if origin != None:
+                    neighborhood_indices = [neighborhood_indices[0] + origin[0],neighborhood_indices[1] + origin[0],neighborhood_indices[2] + origin[1],neighborhood_indices[3] + origin[1]]
+                neighborhood_indices = self._calculate_edge_indices(neighborhood_indices)
+                neighborhood_nan_mask = self.nan_mask[neighborhood_indices[0]:neighborhood_indices[1],neighborhood_indices[2]:neighborhood_indices[3]]
+
+                if np.any(neighborhood_nan_mask):
+                    continue
+
+            image_crop = image_blurred[indices[0]:indices[1],indices[2]:indices[3]]
             image_crop = np.where(region.image,image_crop,0)
             
             maxima = feature.peak_local_max(image_crop,min_distance=round(nuclei_diameter / 3),exclude_border=False)
@@ -122,6 +140,19 @@ class Cellori:
             outlines[vr,vc] = 1
                 
         return outlines
+
+    def _calculate_edge_indices(self,indices):
+
+        if indices[0] < 0:
+            indices[0] = 0
+        if indices[1] > self.image.shape[0]:
+            indices[1] = self.image.shape[0]
+        if indices[2] < 0:
+            indices[2] = 0
+        if indices[3] > self.image.shape[1]:
+            indices[3] = self.image.shape[1]
+
+        return indices
 
     def _indices_to_xy(self,coords):
         

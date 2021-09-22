@@ -12,11 +12,11 @@ from skimage import exposure
 def run_gui(Cellori):
 
     def segment(event):
-                
+
         def crop_coords(ax):
 
             viewlim = np.array([[ax.viewLim.y1,ax.viewLim.x0],[ax.viewLim.y0,ax.viewLim.x1]])
-            cropped_coords = Cellori.all_coords[np.all((viewlim[0] < Cellori.all_coords) & (Cellori.all_coords < viewlim[1]),axis=1)]
+            cropped_coords = Cellori.all_coords[np.all((viewlim[0] <= Cellori.all_coords) & (Cellori.all_coords <= viewlim[1]),axis=1)]
             Cellori.segmentation_ax2.set_title(str(len(cropped_coords)) + " Cells")
             Cellori.segmentation_fig.canvas.draw_idle()
 
@@ -98,30 +98,17 @@ def run_gui(Cellori):
         Cellori.ax2.set_ylim(Cellori.origin[1] + Cellori.preview_size / 2,Cellori.origin[1] - Cellori.preview_size / 2)
 
         offset = int((int(Cellori.block_size.text) - 1) / 2)
-        offsets = [offset] * 4
+        indices = np.array([round(Cellori.origin[1] - Cellori.preview_size / 2) - offset,round(Cellori.origin[1] + Cellori.preview_size / 2) + offset,round(Cellori.origin[0] - Cellori.preview_size / 2) - offset,round(Cellori.origin[0] + Cellori.preview_size / 2) + offset])
+        adjusted_indices = Cellori._calculate_edge_indices(indices.copy())
+        offsets = np.array([offset] * 4) - np.abs(indices - adjusted_indices)
 
-        x_low,x_high,y_low,y_high = round(Cellori.origin[1] - Cellori.preview_size / 2) - offset,round(Cellori.origin[1] + Cellori.preview_size / 2) + offset,round(Cellori.origin[0] - Cellori.preview_size / 2) - offset,round(Cellori.origin[0] + Cellori.preview_size / 2) + offset
+        image_crop = Cellori.image[adjusted_indices[0]:adjusted_indices[1],adjusted_indices[2]:adjusted_indices[3]]
+        coords,_ = Cellori._find_nuclei(image_crop,float(Cellori.sigma.text),int(Cellori.block_size.text),float(Cellori.nuclei_diameter.text),(adjusted_indices[0],adjusted_indices[2]))
 
-        if x_low < 0:
-            x_low += offset
-            offsets[0] = 0
-        if x_high > Cellori.image.shape[0]:
-            x_high -= offset
-            offsets[1] = 0
-        if y_low < 0:
-            y_low += offset
-            offsets[2] = 0
-        if y_high > Cellori.image.shape[1]:
-            y_high -= offset
-            offsets[3] = 0
-
-        image_crop = Cellori.image[x_low:x_high,y_low:y_high]
-        coords,_ = Cellori._find_nuclei(image_crop,float(Cellori.sigma.text),int(Cellori.block_size.text),float(Cellori.nuclei_diameter.text))
-
-        viewlim = np.array([[offsets[0],offsets[2]],[x_high - x_low - offsets[1],y_high - y_low - offsets[3]]])
+        viewlim = np.array([[offsets[0],offsets[2]],[adjusted_indices[1] - adjusted_indices[0] - offsets[1],adjusted_indices[3] - adjusted_indices[2] - offsets[3]]])
 
         if len(coords) > 0:
-            coords = coords[np.all((viewlim[0] < coords),axis=1) & np.all((coords < viewlim[1]),axis=1)]
+            coords = coords[np.all((viewlim[0] <= coords),axis=1) & np.all((coords <= viewlim[1]),axis=1)]
 
         Cellori.ax2.set_title(str(len(coords)) + " Cells")
 
@@ -182,13 +169,13 @@ def run_gui(Cellori):
 
     def check_origin():
 
-        if Cellori.origin[0] - Cellori.preview_size / 2 < 0.5:
-            Cellori.origin[0] = Cellori.preview_size / 2 + 0.5
-        if Cellori.origin[1] - Cellori.preview_size / 2 < 0.5:
-            Cellori.origin[1] = Cellori.preview_size / 2 + 0.5
-        if Cellori.origin[0] + Cellori.preview_size / 2 > Cellori.image.shape[1] - 0.5:
+        if Cellori.origin[0] - Cellori.preview_size / 2 <= 0:
+            Cellori.origin[0] = Cellori.preview_size / 2 - 1
+        if Cellori.origin[1] - Cellori.preview_size / 2 <= 0:
+            Cellori.origin[1] = Cellori.preview_size / 2 - 1
+        if Cellori.origin[0] + Cellori.preview_size / 2 >= Cellori.image.shape[1]:
             Cellori.origin[0] = Cellori.image.shape[1] - Cellori.preview_size / 2 - 0.5
-        if Cellori.origin[1] + Cellori.preview_size / 2 > Cellori.image.shape[0] - 0.5:
+        if Cellori.origin[1] + Cellori.preview_size / 2 >= Cellori.image.shape[0]:
             Cellori.origin[1] = Cellori.image.shape[0] - Cellori.preview_size / 2 - 0.5
 
     matplotlib.use('Qt5Agg')
