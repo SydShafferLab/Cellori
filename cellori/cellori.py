@@ -32,14 +32,19 @@ class Cellori:
             self.image = image
 
         self.image = self.image.astype(np.uint16)
-        
-        global_thresh = filters.threshold_otsu(self.image)
-        foreground_mask = self.image > global_thresh
-        background = np.ma.masked_array(self.image,foreground_mask)
-        self.background_std = np.std(background)
 
         self.nan_mask = np.where(self.image == 0,True,False)
         self.exists_nan = np.any(self.nan_mask)
+        if self.exists_nan:
+            self.image = np.ma.masked_array(self.image,self.nan_mask)
+
+        global_thresh = filters.threshold_otsu(self.image)
+        if global_thresh > 0:
+            foreground_mask = self.image > global_thresh
+            background = np.ma.masked_array(self.image,foreground_mask)
+            self.threshold_offset = np.std(background)
+        else:
+            self.threshold_offset = 0
 
     def gui(self):
 
@@ -78,7 +83,7 @@ class Cellori:
 
         image_blurred = filters.gaussian(image,sigma,preserve_range=True)
         adaptive_thresh = filters.threshold_local(image_blurred,block_size,method='mean')
-        binary = image_blurred > adaptive_thresh + max(self.background_std,10)
+        binary = image_blurred > adaptive_thresh + self.threshold_offset
 
         min_area = np.pi * (nuclei_diameter / 2) ** 2
         binary = morphology.remove_small_objects(binary,min_area)
