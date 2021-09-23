@@ -1,3 +1,4 @@
+from multiprocessing import Value
 import cv2 as cv
 import numpy as np
 import os
@@ -21,15 +22,24 @@ class Cellori:
 
                 from tifffile import imread
                 self.image = imread(image)
-            
-            if self.image.ndim == 3:
-                
-                nuclei_channel = kwargs.get('nuclei_channel')
-                self.image = self.image[nuclei_channel]
 
         elif isinstance(image,np.ndarray):
             
             self.image = image
+
+        else:
+
+            raise ValueError("Invalid image.")
+
+        if self.image.ndim != 2:
+            if self.image.ndim == 3:
+                    nuclei_channel = kwargs.get('nuclei_channel')
+                    if nuclei_channel != None:
+                        self.image = self.image[nuclei_channel]
+                    else:
+                        raise ValueError("Nuclei channel not specified.")
+            else:
+                raise ValueError("Invalid image dimensions.")
 
         self.image = self.image.astype(np.uint16)
 
@@ -59,14 +69,12 @@ class Cellori:
         elif segmentation_mode == 'coordinates':
             coords,_ = self._find_nuclei(self.image,sigma,block_size,nuclei_diameter)
         else:
-            print("Invalid segmentation mode.")
-            exit()
+            raise ValueError("Invalid segmentation mode.")
 
         if coordinate_format =='xy':
             coords = self._indices_to_xy(coords)
         elif coordinate_format !='indices':
-            print("Invalid coordinate format.")
-            exit()
+            raise ValueError("Invalid coordinate format.")
 
         output = (masks,coords) if segmentation_mode == 'masks' else coords
 
@@ -137,12 +145,10 @@ class Cellori:
         outlines = np.zeros(masks.shape,dtype=bool)
 
         for region in regions:
-            sr,sc = region.slice
             mask = region.image.astype(np.uint8)
             contours = cv.findContours(mask,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_NONE)
-            pvc,pvr = np.concatenate(contours[0],axis=0).squeeze().T            
-            vr,vc = pvr + sr.start,pvc + sc.start 
-            outlines[vr,vc] = 1
+            contours = np.concatenate(contours[0],axis=0).squeeze().T
+            outlines[contours[1] + region.slice[0].start,contours[0] + region.slice[1].start] = 1
                 
         return outlines
 
