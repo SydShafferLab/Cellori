@@ -170,9 +170,9 @@ def run_gui(Cellori):
     def check_origin():
 
         if Cellori.origin[0] - Cellori.preview_size / 2 <= 0:
-            Cellori.origin[0] = Cellori.preview_size / 2 - 1
+            Cellori.origin[0] = Cellori.preview_size / 2 - 0.5
         if Cellori.origin[1] - Cellori.preview_size / 2 <= 0:
-            Cellori.origin[1] = Cellori.preview_size / 2 - 1
+            Cellori.origin[1] = Cellori.preview_size / 2 - 0.5
         if Cellori.origin[0] + Cellori.preview_size / 2 >= Cellori.image.shape[1]:
             Cellori.origin[0] = Cellori.image.shape[1] - Cellori.preview_size / 2 - 0.5
         if Cellori.origin[1] + Cellori.preview_size / 2 >= Cellori.image.shape[0]:
@@ -204,13 +204,13 @@ def run_gui(Cellori):
     plt.subplots_adjust(left=0.025,right=0.975,top=1,bottom=0.15)
 
     ax_sigma = plt.axes([0.10,0.1,0.15,0.05])
-    Cellori.sigma = TextBox(ax_sigma,'Sigma',initial='2')
+    Cellori.sigma = TextBox(ax_sigma,'Sigma',initial=2)
     Cellori.sigma.on_submit(update_parameters)
     ax_block_size = plt.axes([0.425,0.1,0.15,0.05])
-    Cellori.block_size = TextBox(ax_block_size,'Block Size',initial='7')
+    Cellori.block_size = TextBox(ax_block_size,'Block Size',initial=Cellori.default_block_size)
     Cellori.block_size.on_submit(update_parameters)
     ax_nuclei_diameter = plt.axes([0.75,0.1,0.15,0.05])
-    Cellori.nuclei_diameter = TextBox(ax_nuclei_diameter,'Nuclei Diameter',initial='6')
+    Cellori.nuclei_diameter = TextBox(ax_nuclei_diameter,'Nuclei Diameter',initial=Cellori.default_nuclei_diameter)
     Cellori.nuclei_diameter.on_submit(update_parameters)
 
     ax_contrast = plt.axes([0.1,0.0375,0.2,0.025])

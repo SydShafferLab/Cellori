@@ -49,19 +49,25 @@ class Cellori:
 
         global_thresh = filters.threshold_otsu(self.image)
         if global_thresh > 0:
-            foreground_mask = self.image > global_thresh
-            background = np.ma.masked_array(self.image,foreground_mask)
+            self.foreground_mask = self.image > global_thresh
+            background = np.ma.masked_array(self.image,self.foreground_mask)
             self.threshold_offset = np.std(background)
         else:
             self.threshold_offset = 0
-
-    def gui(self):
+            
+    def gui(self,estimate_parameters=True):
 
         from cellori.run_gui import run_gui
+
+        if estimate_parameters:
+            self._estimate_parameters()
+        else:
+            self.default_block_size = 7
+            self.default_nuclei_diameter = 6
         
         run_gui(self)
 
-    def segment(self,sigma=2,block_size=7,nuclei_diameter=6,segmentation_mode='masks',coordinate_format='indices'):
+    def segment(self,sigma=2,block_size=None,nuclei_diameter=None,segmentation_mode='masks',coordinate_format='indices'):
 
         if segmentation_mode == 'masks':
             masks,coords = self._segment(self.image,sigma,block_size,nuclei_diameter)
@@ -87,6 +93,15 @@ class Cellori:
         return masks,coords
 
     def _find_nuclei(self,image,sigma,block_size,nuclei_diameter,origin=None):
+
+        if block_size == None or nuclei_diameter == None:
+
+            self._estimate_nuclei_diameter()
+            
+            if block_size == None:
+                block_size = self.default_block_size
+            if nuclei_diameter == None:
+                nuclei_diameter = self.default_nuclei_diameter
 
         image_blurred = filters.gaussian(image,sigma,preserve_range=True)
         adaptive_thresh = filters.threshold_local(image_blurred,block_size,method='mean')
@@ -150,6 +165,15 @@ class Cellori:
             outlines[contours[1] + region.slice[0].start,contours[0] + region.slice[1].start] = 1
                 
         return outlines
+
+    def _estimate_parameters(self):
+
+        foreground_labeled = morphology.label(self.foreground_mask)
+        regions = measure.regionprops(foreground_labeled,cache=False)
+        
+        equivalent_diameters = np.array([region.equivalent_diameter for region in regions])
+        self.default_nuclei_diameter = round(np.mean(equivalent_diameters) / 2)
+        self.default_block_size = 2 * self.default_nuclei_diameter + 1
 
     def _calculate_edge_indices(self,indices):
 
