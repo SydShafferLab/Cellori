@@ -96,7 +96,7 @@ class Cellori:
 
         if block_size == None or nuclei_diameter == None:
 
-            self._estimate_nuclei_diameter()
+            self._estimate_parameters()
             
             if block_size == None:
                 block_size = self.default_block_size
@@ -133,7 +133,7 @@ class Cellori:
 
             image_crop = image_blurred[indices[0]:indices[1],indices[2]:indices[3]]
             image_crop = np.where(region.image,image_crop,0)
-            
+
             maxima = feature.peak_local_max(image_crop,min_distance=round(nuclei_diameter / 3),exclude_border=False)
             
             for coord in maxima:
