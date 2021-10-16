@@ -1,8 +1,8 @@
 from setuptools import setup,find_packages
 
-VERSION = "2.3"
+VERSION = "2.4"
 DESCRIPTION = "Cellori"
-LONG_DESCRIPTION = "A fast and robust algorithm for clustered nuclei segmentation."
+LONG_DESCRIPTION = "A fast and robust intensity-based algorithm for clustered nuclei segmentation in fluorescence microscopy images."
 
 setup(
     name="cellori",
