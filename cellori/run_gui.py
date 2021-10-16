@@ -204,7 +204,7 @@ def run_gui(Cellori):
     plt.subplots_adjust(left=0.025,right=0.975,top=1,bottom=0.15)
 
     ax_sigma = plt.axes([0.10,0.1,0.15,0.05])
-    Cellori.sigma = TextBox(ax_sigma,'Sigma',initial=2)
+    Cellori.sigma = TextBox(ax_sigma,'Sigma',initial=1.5)
     Cellori.sigma.on_submit(update_parameters)
     ax_block_size = plt.axes([0.425,0.1,0.15,0.05])
     Cellori.block_size = TextBox(ax_block_size,'Block Size',initial=Cellori.default_block_size)

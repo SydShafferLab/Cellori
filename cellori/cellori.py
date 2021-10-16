@@ -62,12 +62,12 @@ class Cellori:
         if estimate_parameters:
             self._estimate_parameters()
         else:
-            self.default_block_size = 7
+            self.default_block_size = 15
             self.default_nuclei_diameter = 6
         
         run_gui(self)
 
-    def segment(self,sigma=2,block_size=None,nuclei_diameter=None,segmentation_mode='masks',coordinate_format='indices'):
+    def segment(self,sigma=1.5,block_size=None,nuclei_diameter=None,segmentation_mode='masks',coordinate_format='indices'):
 
         if segmentation_mode == 'masks':
             masks,coords = self._segment(self.image,sigma,block_size,nuclei_diameter)
@@ -103,9 +103,10 @@ class Cellori:
             if nuclei_diameter == None:
                 nuclei_diameter = self.default_nuclei_diameter
 
-        image_blurred = filters.gaussian(image,sigma,preserve_range=True)
-        adaptive_thresh = filters.threshold_local(image_blurred,block_size,method='mean')
-        binary = image_blurred > adaptive_thresh + self.threshold_offset
+        image_blurry = filters.gaussian(image,sigma,preserve_range=True)
+        image_blurrier = filters.gaussian(image,sigma * 2,preserve_range=True)
+        adaptive_thresh = filters.threshold_local(image_blurrier,block_size,method='mean')
+        binary = image_blurrier > adaptive_thresh + self.threshold_offset
 
         min_area = np.pi * (nuclei_diameter / 2) ** 2
         binary = morphology.remove_small_objects(binary,min_area)
@@ -131,7 +132,7 @@ class Cellori:
                 if np.any(neighborhood_nan_mask):
                     continue
 
-            image_crop = image_blurred[indices[0]:indices[1],indices[2]:indices[3]]
+            image_crop = image_blurry[indices[0]:indices[1],indices[2]:indices[3]]
             image_crop = np.where(region.image,image_crop,0)
 
             maxima = feature.peak_local_max(image_crop,min_distance=round(nuclei_diameter / 3),exclude_border=False)
@@ -171,8 +172,8 @@ class Cellori:
         foreground_labeled = morphology.label(self.foreground_mask)
         regions = measure.regionprops(foreground_labeled,cache=False)
         
-        equivalent_diameters = np.array([region.equivalent_diameter for region in regions])
-        self.default_nuclei_diameter = round(np.mean(equivalent_diameters) / 2)
+        d = np.array([region.equivalent_diameter for region in regions])
+        self.default_nuclei_diameter = round(np.mean(d))
         self.default_block_size = 2 * self.default_nuclei_diameter + 1
 
     def _calculate_edge_indices(self,indices):
