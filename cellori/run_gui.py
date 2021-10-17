@@ -41,7 +41,7 @@ def run_gui(Cellori):
         if Cellori.segmentation_fig == None:
 
             Cellori.segmentation_fig = plt.figure(figsize=(12,6))
-            Cellori.segmentation_fig.canvas.manager.set_window_title('Count Results')
+            Cellori.segmentation_fig.canvas.manager.set_window_title('Segmentation Results')
             Cellori.segmentation_ax1 = plt.subplot(1,2,1)
             Cellori.segmentation_ax1.set_title("Original Image")
             Cellori.segmentation_ax1.xaxis.set_visible(False)
@@ -235,7 +235,7 @@ def run_gui(Cellori):
     Cellori.preview_slider.on_changed(update_preview)
 
     ax_segment = plt.axes([0.8,0.025,0.1,0.05])
-    Cellori.segment_button = Button(ax_segment,'Count')
+    Cellori.segment_button = Button(ax_segment,'Segment')
     Cellori.segment_button.on_clicked(segment)
     Cellori.segmentation_fig = None
 
