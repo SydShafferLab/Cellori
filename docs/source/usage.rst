@@ -17,7 +17,7 @@ Install Cellori from `PyPI <https://pypi.org/project/cellori/>`_.
 Guided Segmentation Tutorial
 ----------------
 
-1. Download the `sample image <https://github.com/SydShafferLab/Cellori/blob/main/docs/demo/wm989.tif>`_ (WM989 cells).
+1. Download the `sample image <https://github.com/SydShafferLab/Cellori/raw/main/docs/demo/wm989.tif>`_ (WM989 cells).
 2. Create a Python script with the following lines of code. Make sure that wm989.tif is in your current working directory. If you are using your own image file, also refer to the :doc:`api` documentation for additional parameters that must be specified.
 
 .. code-block:: python

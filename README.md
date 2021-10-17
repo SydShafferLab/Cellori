@@ -55,7 +55,7 @@ pip install cellori
 The built-in GUI is the easiest way to use the Cellori algorithm. Below is a short demo to get you started. For a more comprehensive walk-through, follow our [guided segmentation tutorial](https://cellori.readthedocs.io/en/latest/usage.html#tutorial). GUI-independent functions for obtaining masks and coordinates are also available, which you can learn more about [here](https://cellori.readthedocs.io/en/latest/api.html).
 
 ### GUI Demo
-1. Download the [sample image](docs/demo/wm989.tif) (WM989 cells).
+1. Download the [sample image](https://github.com/SydShafferLab/Cellori/raw/main/docs/demo/wm989.tif) (WM989 cells).
 2. Create a Python script with the following lines of code. Make sure that `wm989.tif` is in your current working directory.
 ```python
 from cellori import Cellori
