@@ -6,6 +6,29 @@ from skimage import feature,filters,measure,morphology,segmentation
 
 class Cellori:
 
+    """Cellori class object that takes the path to an image file or an image array.
+
+    Parameters
+    ----------
+        image : str or numpy.ndarray 
+            The path to an ND2 or TIFF file or a ``numpy.ndarray`` of an image that has already been loaded.
+        nd2_overlap : float, optional, default 0.1
+            The overlap percentage used by StitchWell for ND2 stitching. If ``None``, the value will be determined by automatic overlap calculation. This value is ignored if ``image`` is not the path to an ND2 file.
+        nd2_stitch_channel : float, optional, default 0
+            The index of the channel used by StitchWell for automatic overlap calculation during ND2 stitching. This value is ignored if automatic overlap calculation is not applicable.
+        nuclei_channel : int, optional, default 0
+            The index of the channel containing the nuclei for segmentation. This value is ignored if ``image`` has a single channel.
+
+    Raises
+    ------
+        ValueError
+            If ``image`` is an invalid image path or array.
+        ValueError
+            If ``nuclei_channel`` is not specified for an ``image`` with multiple channels.
+        ValueError
+            If ``image`` has invalid dimensions.
+    """
+
     def __init__(self,image,**kwargs):
         
         if os.path.isfile(image):
@@ -57,6 +80,14 @@ class Cellori:
             
     def gui(self,estimate_parameters=True):
 
+        """Initiates the Cellori GUI.
+
+        Parameters
+        ----------
+            estimate_parameters : bool, optional, default True
+                Whether or not to run automatic parameter detection.   
+        """
+
         from cellori.run_gui import run_gui
 
         if estimate_parameters:
@@ -68,6 +99,38 @@ class Cellori:
         run_gui(self)
 
     def segment(self,sigma=1.5,block_size=None,nuclei_diameter=None,segmentation_mode='masks',coordinate_format='indices'):
+
+        """Segments the image using the Cellori algorithm.
+
+        Parameters
+        ----------
+            sigma : float, optional, default 1.5
+                Gaussian sigma used for background denoising.
+            block_size : int, optional, default None
+                Odd size of pixel neighborhood which is used for local thresholding (e.g., 3, 5, 7, ..., 21). If ``None``, the value will be determined by automatic parameter detection.
+            nuclei_diameter : int, optional, default None
+                Estimated lower bound of nuclei diameters. Any objects smaller than this threshold will not be considered for segmentation. If ``None``, the value will be determined by automatic parameter detection.
+            segmentation_mode : {'masks', 'coordinates'}, optional, default 'masks'
+                * 'masks': Get masks using the watershed algorithm in addition to finding nuclei coordinates.
+                * 'coordinates': Find the coordinates of nuclei centers only.
+            coordinate_format : {'xy', 'indices'}, optional, default indices
+                * 'xy': Format coordinates for plotting on standard XY axes.
+                * 'indices': Format coordinates as indices of the original image array.
+        
+        Returns
+        -------
+            masks : numpy.ndarray
+                Labeled array of the same size as the original image with background pixels as 0 and cells as 1, 2, 3, ..., N. This array is only returned if the ``segmentation_mode`` is ``masks``.
+            coords : numpy.ndarray
+                Array of size (N, 2) with the coordinates of cell nuclei.
+
+        Raises
+        ------
+            ValueError
+                If ``segmentation_mode`` is an invalid segmentation mode.
+            ValueError
+                If ``coordinate_format`` is an invalid coordinate format.
+        """
 
         if segmentation_mode == 'masks':
             masks,coords = self._segment(self.image,sigma,block_size,nuclei_diameter)
@@ -87,12 +150,65 @@ class Cellori:
 
     def _segment(self,image,sigma,block_size,nuclei_diameter):
 
+        """(For internal use) Get masks and nuclei coordinates using the Cellori algorithm.
+
+        Parameters
+        ----------
+            image : numpy.ndarray
+                Array of the image to be segmented.
+            sigma : float
+                Gaussian sigma used for background denoising.
+            block_size : int
+                Odd size of pixel neighborhood which is used for local thresholding (e.g., 3, 5, 7, ..., 21).
+            nuclei_diameter : int
+                Estimated lower bound of nuclei diameters. Any objects smaller than this threshold will not be considered for segmentation.
+            segmentation_mode : {'masks', 'coordinates'}
+                * 'masks': Get masks using the watershed algorithm in addition to finding nuclei coordinates.
+                * 'coordinates': Find the coordinates of nuclei centers only.
+            coordinate_format : {'xy', 'indices'}
+                * 'xy': Format coordinates for plotting on standard XY axes.
+                * 'indices': Format coordinates as indices of the original image array.
+        
+        Returns
+        -------
+            masks : numpy.ndarray
+                Labeled array of the same size as the original image with background pixels as 0 and cells as 1, 2, 3, ..., N.
+            coords : numpy.ndarray
+                Array of size (N, 2) with the coordinates of cell nuclei.
+        """
+
         coords,binary = self._find_nuclei(image,sigma,block_size,nuclei_diameter)
         masks = self._get_masks(binary,coords)
 
         return masks,coords
 
     def _find_nuclei(self,image,sigma,block_size,nuclei_diameter,origin=None):
+
+        """(For internal use) Find nuclei using the Cellori algorithm.
+
+        Parameters
+        ----------
+            image : numpy.ndarray
+                Array of the image to be segmented.
+            sigma : float
+                Gaussian sigma used for background denoising.
+            block_size : int
+                Odd size of pixel neighborhood which is used for local thresholding (e.g., 3, 5, 7, ..., 21).
+            nuclei_diameter : int
+                Estimated lower bound of nuclei diameters. Any objects smaller than this threshold will not be considered for segmentation.
+            coordinate_format : {'xy', 'indices'}
+                * 'xy': Format coordinates for plotting on standard XY axes.
+                * 'indices': Format coordinates as indices of the original image array.
+            origin : tuple, optional, default None
+                Origin coordinates of the GUI preview region.
+        
+        Returns
+        -------
+            coords : numpy.ndarray
+                Array of size (N, 2) with the coordinates of cell nuclei.
+            binary : numpy.ndarray
+                Binarized array of the same size as the original image.
+        """
 
         if block_size == None or nuclei_diameter == None:
 
@@ -146,6 +262,32 @@ class Cellori:
 
     def _get_masks(self,binary,coords):
 
+        """(For internal use) Find nuclei using the Cellori algorithm.
+
+        Parameters
+        ----------
+            image : numpy.ndarray
+                Array of the image to be segmented.
+            sigma : float
+                Gaussian sigma used for background denoising.
+            block_size : int
+                Odd size of pixel neighborhood which is used for local thresholding (e.g., 3, 5, 7, ..., 21).
+            nuclei_diameter : int
+                Estimated lower bound of nuclei diameters. Any objects smaller than this threshold will not be considered for segmentation.
+            coordinate_format : {'xy', 'indices'}
+                * 'xy': Format coordinates for plotting on standard XY axes.
+                * 'indices': Format coordinates as indices of the original image array.
+            origin : tuple, optional, default None
+                Origin coordinates of the GUI preview region.
+        
+        Returns
+        -------
+            coords : numpy.ndarray
+                Array of size (N, 2) with the coordinates of cell nuclei.
+            binary : numpy.ndarray
+                Binarized array of the same size as the original image.
+        """
+
         markers = np.zeros(binary.shape,dtype=bool)
         markers[tuple(np.rint(coords).astype(np.uint).T)] = True
         markers = morphology.label(markers)
@@ -154,6 +296,19 @@ class Cellori:
         return masks
 
     def _masks_to_outlines(self,masks):
+
+        """(For internal use) Convert masks to outlines for displaying GUI segmentation results.
+
+        Parameters
+        ----------
+            masks : numpy.ndarray
+                Labeled array of the same size as the original image with background pixels as 0 and cells as 1, 2, 3, ..., N.
+        
+        Returns
+        -------
+            outlines : numpy.ndarray
+                Array of the same size as the original image with outlines around each cell.
+        """
 
         regions = measure.regionprops(masks,cache=False)
 
@@ -169,6 +324,9 @@ class Cellori:
 
     def _estimate_parameters(self):
 
+        """(For internal use) Estimate parameters for segmentation.
+        """
+
         foreground_labeled = morphology.label(self.foreground_mask)
         regions = measure.regionprops(foreground_labeled,cache=False)
         
@@ -177,6 +335,19 @@ class Cellori:
         self.default_block_size = 2 * self.default_nuclei_diameter + 1
 
     def _calculate_edge_indices(self,indices):
+
+        """(For internal use) Calculate indices for slicing near the edges of an array.
+
+        Parameters
+        ----------
+            indices : list
+                Indices for array slicing.
+        
+        Returns
+        -------
+            outlines : list
+                Adjusted indices for array slicing near the edges.
+        """
 
         if indices[0] < 0:
             indices[0] = 0
@@ -190,6 +361,19 @@ class Cellori:
         return indices
 
     def _indices_to_xy(self,coords):
+
+        """(For internal use) Convert array indices to XY coordinates.
+
+        Parameters
+        ----------
+            coords : numpy.ndarray
+                Array of size (N, 2) with the coordinates of cell nuclei formatted as indices of the original image array.
+        
+        Returns
+        -------
+            coords : numpy.ndarray
+                Array of size (N, 2) with the coordinates of cell nuclei formatted for plotting on standard XY axes.
+        """
         
         coords[:,0] = self.image.shape[0] - coords[:,0]
         coords = np.fliplr(coords)
