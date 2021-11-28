@@ -4,7 +4,8 @@ import numpy as np
 import os
 
 from cellori.imshowfast import imshow
-from matplotlib.widgets import Button,Slider,TextBox
+from cellori.utils import _masks_to_outlines
+from matplotlib.widgets import Button,Slider,TextBox,RadioButtons
 from matplotlib.patches import Rectangle
 from PyQt5 import QtWidgets
 from skimage import exposure
@@ -33,10 +34,10 @@ def run_gui(Cellori):
             
             np.savetxt(save_path,save_data,delimiter=',')
 
-        Cellori.masks,Cellori.all_coords = Cellori._segment(Cellori.image,float(Cellori.sigma.text),int(Cellori.block_size.text),float(Cellori.nuclei_diameter.text))
+        Cellori.masks,Cellori.all_coords = Cellori._segment(Cellori.image,Cellori.watershed_labeled,parse_segmentation_mode(),float(Cellori.threshold_locality.text),float(Cellori.sigma.text),float(Cellori.nuclei_diameter.text))
 
-        Cellori.outlines = Cellori._masks_to_outlines(Cellori.masks)
-        Cellori.outlines = np.where(Cellori.outlines,Cellori.outlines,np.nan)
+        Cellori.all_outlines = _masks_to_outlines(Cellori.masks)
+        Cellori.all_outlines = np.where(Cellori.all_outlines,Cellori.all_outlines,np.nan)
 
         if Cellori.segmentation_fig == None:
 
@@ -55,7 +56,7 @@ def run_gui(Cellori):
             Cellori.segmentation_ax2.callbacks.connect('ylim_changed',crop_coords)
             Cellori.segmentation_ax1_image = imshow(Cellori.segmentation_ax1,Cellori.image_adjusted,vmin=0,vmax=255,cmap="gray")
             Cellori.segmentation_ax2_image = imshow(Cellori.segmentation_ax2,Cellori.image_adjusted,vmin=0,vmax=255,cmap="gray")
-            Cellori.segmentation_ax2_outlines = imshow(Cellori.segmentation_ax2,Cellori.outlines,cmap='winter')
+            Cellori.segmentation_ax2_outlines = imshow(Cellori.segmentation_ax2,Cellori.all_outlines,cmap='winter')
             Cellori.segmentation_viewlim = np.rot90(Cellori.segmentation_ax2.viewLim.get_points().copy(),2)
             Cellori.segmentation_ax2.set_xlim(Cellori.segmentation_viewlim[0])
             Cellori.segmentation_ax2.set_ylim(Cellori.segmentation_viewlim[1])
@@ -76,7 +77,7 @@ def run_gui(Cellori):
 
             Cellori.segmentation_ax1_image.set_data(Cellori.image_adjusted)
             Cellori.segmentation_ax2_image.set_data(Cellori.image_adjusted)
-            Cellori.segmentation_ax2_outlines.set_data(Cellori.outlines)
+            Cellori.segmentation_ax2_outlines.set_data(Cellori.all_outlines)
 
             if not np.array_equal(Cellori.segmentation_ax2.viewLim.get_points(),Cellori.segmentation_viewlim):
                 
@@ -88,7 +89,7 @@ def run_gui(Cellori):
         if len(Cellori.segmentation_ax2.collections) > 0:
                 Cellori.segmentation_ax2.collections[-1].remove()
         if len(Cellori.all_coords) > 0:
-            Cellori.segmentation_ax2.scatter(Cellori.all_coords[:,1],Cellori.all_coords[:,0],s=3,c='r')
+            Cellori.segmentation_ax2.scatter(Cellori.all_coords[:,1],Cellori.all_coords[:,0],s=2,c='r')
 
         Cellori.segmentation_fig.show()
 
@@ -97,28 +98,40 @@ def run_gui(Cellori):
         Cellori.ax2.set_xlim(Cellori.origin[0] - Cellori.preview_size / 2,Cellori.origin[0] + Cellori.preview_size / 2)
         Cellori.ax2.set_ylim(Cellori.origin[1] + Cellori.preview_size / 2,Cellori.origin[1] - Cellori.preview_size / 2)
 
-        offset = int((int(Cellori.block_size.text) - 1) / 2)
-        indices = np.array([round(Cellori.origin[1] - Cellori.preview_size / 2) - offset,round(Cellori.origin[1] + Cellori.preview_size / 2) + offset,round(Cellori.origin[0] - Cellori.preview_size / 2) - offset,round(Cellori.origin[0] + Cellori.preview_size / 2) + offset])
-        adjusted_indices = Cellori._calculate_edge_indices(indices.copy())
-        offsets = np.array([offset] * 4) - np.abs(indices - adjusted_indices)
+        indices = np.array([round(Cellori.origin[1] - Cellori.preview_size / 2),round(Cellori.origin[1] + Cellori.preview_size / 2),round(Cellori.origin[0] - Cellori.preview_size / 2),round(Cellori.origin[0] + Cellori.preview_size / 2)])
+        watershed_labeled_crop = Cellori.watershed_labeled[indices[0]:indices[1],indices[2]:indices[3]]
+        crop_regions_ids = np.unique(watershed_labeled_crop)
+        crop_regions_indices = crop_regions_ids[crop_regions_ids > 0] - 1
+        crop_regions = [Cellori.watershed_regions[i] for i in crop_regions_indices]
+        crop_regions_bbox = np.array([[region.bbox[0],region.bbox[2],region.bbox[1],region.bbox[3]] for region in crop_regions]).T
+        adjusted_indices = np.array([np.min(crop_regions_bbox[0]),np.max(crop_regions_bbox[1]),np.min(crop_regions_bbox[2]),np.max(crop_regions_bbox[3])])
+        adjusted_indices = np.array([max(adjusted_indices[0],indices[0] - Cellori.preview_size / 4),min(adjusted_indices[1],indices[1] + Cellori.preview_size / 4),max(adjusted_indices[2],indices[2] - Cellori.preview_size / 4),min(adjusted_indices[3],indices[3] + Cellori.preview_size / 4)])
+        adjusted_indices = Cellori._calculate_edge_indices(adjusted_indices,Cellori.image)
+        adjusted_indices = np.rint(adjusted_indices).astype(int)
+        offsets = np.abs(indices - adjusted_indices)
 
         image_crop = Cellori.image[adjusted_indices[0]:adjusted_indices[1],adjusted_indices[2]:adjusted_indices[3]]
-        coords,_ = Cellori._find_nuclei(image_crop,float(Cellori.sigma.text),int(Cellori.block_size.text),float(Cellori.nuclei_diameter.text),(adjusted_indices[0],adjusted_indices[2]))
+        watershed_labeled_crop = Cellori.watershed_labeled[adjusted_indices[0]:adjusted_indices[1],adjusted_indices[2]:adjusted_indices[3]]
+        masks,coords = Cellori._segment(image_crop,watershed_labeled_crop,parse_segmentation_mode(),float(Cellori.threshold_locality.text),float(Cellori.sigma.text),float(Cellori.nuclei_diameter.text),(adjusted_indices[0],adjusted_indices[2]))
+        outlines = _masks_to_outlines(masks[offsets[0]:masks.shape[0] - offsets[1],offsets[2]:masks.shape[1] - offsets[3]])
+        outlines = np.where(outlines,outlines,np.nan)
 
-        viewlim = np.array([[offsets[0],offsets[2]],[adjusted_indices[1] - adjusted_indices[0] - offsets[1],adjusted_indices[3] - adjusted_indices[2] - offsets[3]]])
-
+        viewlim = np.array([[offsets[0],offsets[2]],[offsets[0] + indices[1] - indices[0],offsets[2] + indices[3] - indices[2]]])
         if len(coords) > 0:
             coords = coords[np.all((viewlim[0] <= coords),axis=1) & np.all((coords <= viewlim[1]),axis=1)]
 
         Cellori.ax2.set_title(str(len(coords)) + " Cells")
 
+        extents = Cellori.ax2.viewLim.extents
         if len(Cellori.ax2.collections) > 0:
                 Cellori.ax2.collections[-1].remove()
         if len(coords) > 0:
             y,x = zip(*coords)
-            x = np.add(x,Cellori.origin[0] - Cellori.preview_size / 2 - offsets[2])
-            y = np.add(y,Cellori.origin[1] - Cellori.preview_size / 2 - offsets[0])
-            Cellori.ax2.scatter(x,y,s=3,c='r')
+            x = np.add(x,extents[0] - offsets[2])
+            y = np.add(y,extents[3] - offsets[0])
+            Cellori.ax2.scatter(x,y,s=1000 / Cellori.preview_size,c='r')
+
+        Cellori.ax2_outlines.set(data=outlines,extent=(extents[0],extents[2],extents[1],extents[3]))
 
     def update_parameters(parameter):
 
@@ -170,13 +183,24 @@ def run_gui(Cellori):
     def check_origin():
 
         if Cellori.origin[0] - Cellori.preview_size / 2 <= 0:
-            Cellori.origin[0] = Cellori.preview_size / 2 - 0.5
+            Cellori.origin[0] = Cellori.preview_size / 2
         if Cellori.origin[1] - Cellori.preview_size / 2 <= 0:
-            Cellori.origin[1] = Cellori.preview_size / 2 - 0.5
+            Cellori.origin[1] = Cellori.preview_size / 2
         if Cellori.origin[0] + Cellori.preview_size / 2 >= Cellori.image.shape[1]:
-            Cellori.origin[0] = Cellori.image.shape[1] - Cellori.preview_size / 2 - 0.5
+            Cellori.origin[0] = Cellori.image.shape[1] - Cellori.preview_size / 2
         if Cellori.origin[1] + Cellori.preview_size / 2 >= Cellori.image.shape[0]:
-            Cellori.origin[1] = Cellori.image.shape[0] - Cellori.preview_size / 2 - 0.5
+            Cellori.origin[1] = Cellori.image.shape[0] - Cellori.preview_size / 2
+
+    def parse_segmentation_mode():
+
+        if Cellori.segmentation_mode.value_selected == 'Combined':
+            segmentation_mode = 'combined'
+        elif Cellori.segmentation_mode.value_selected == 'Intensity':
+            segmentation_mode = 'intensity'
+        elif Cellori.segmentation_mode.value_selected == 'Morphology':
+            segmentation_mode = 'morphology'
+
+        return segmentation_mode
 
     matplotlib.use('Qt5Agg')
 
@@ -185,7 +209,7 @@ def run_gui(Cellori):
     Cellori.global_thresh = Cellori.image_mean + 3 * Cellori.image_std
     Cellori.image_adjusted = exposure.rescale_intensity(Cellori.image,(0,Cellori.global_thresh),(0,255))
 
-    Cellori.fig = plt.figure(figsize=(12,6.5))
+    Cellori.fig = plt.figure(figsize=(12,6.75))
     Cellori.fig.canvas.mpl_connect('button_press_event',on_click)
     Cellori.fig.canvas.mpl_connect('key_press_event',on_press)
     Cellori.fig.canvas.mpl_disconnect(Cellori.fig.canvas.manager.key_press_handler_id)
@@ -200,17 +224,21 @@ def run_gui(Cellori):
 
     Cellori.ax1_image = imshow(Cellori.ax1,Cellori.image_adjusted,vmin=0,vmax=255,cmap="gray")
     Cellori.ax2_image = imshow(Cellori.ax2,Cellori.image_adjusted,vmin=0,vmax=255,cmap="gray")
+    Cellori.ax2_outlines = Cellori.ax2.imshow(np.zeros((1,1)),cmap='winter',interpolation='none')
 
-    plt.subplots_adjust(left=0.025,right=0.975,top=1,bottom=0.15)
+    plt.subplots_adjust(left=0.025,right=0.975,top=1,bottom=0.175)
 
-    ax_sigma = plt.axes([0.10,0.1,0.15,0.05])
-    Cellori.sigma = TextBox(ax_sigma,'Sigma',initial=1.5)
+    ax_segmentation_mode = plt.axes([0.075,0.1,0.1,0.1])
+    Cellori.segmentation_mode = RadioButtons(ax_segmentation_mode, ('Combined','Intensity','Morphology'))
+    Cellori.segmentation_mode.on_clicked(update_parameters)
+    ax_threshold_locality = plt.axes([0.325,0.1,0.1,0.05])
+    Cellori.threshold_locality = TextBox(ax_threshold_locality,'Threshold Locality ',initial=0.5)
+    Cellori.threshold_locality.on_submit(update_parameters)
+    ax_sigma = plt.axes([0.575,0.1,0.1,0.05])
+    Cellori.sigma = TextBox(ax_sigma,'Gaussian Sigma ',initial=Cellori.default_sigma)
     Cellori.sigma.on_submit(update_parameters)
-    ax_block_size = plt.axes([0.425,0.1,0.15,0.05])
-    Cellori.block_size = TextBox(ax_block_size,'Block Size',initial=Cellori.default_block_size)
-    Cellori.block_size.on_submit(update_parameters)
-    ax_nuclei_diameter = plt.axes([0.75,0.1,0.15,0.05])
-    Cellori.nuclei_diameter = TextBox(ax_nuclei_diameter,'Nuclei Diameter',initial=Cellori.default_nuclei_diameter)
+    ax_nuclei_diameter = plt.axes([0.825,0.1,0.1,0.05])
+    Cellori.nuclei_diameter = TextBox(ax_nuclei_diameter,'Nuclei Diameter ',initial=Cellori.default_nuclei_diameter)
     Cellori.nuclei_diameter.on_submit(update_parameters)
 
     ax_contrast = plt.axes([0.1,0.0375,0.2,0.025])
