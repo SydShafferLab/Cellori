@@ -47,8 +47,6 @@ def overlay_segmentation(image,masks,overlay_mode='both',mask_alpha=0.5,mask_nco
 
     if overlay_mode != 'outlines':
 
-        outline_color = (255,255,255)
-
         idx = get_touch_map(masks)
         colors = render_net(idx, 4, 10)
         color_label = ncolor_label(masks,colors)
@@ -57,13 +55,12 @@ def overlay_segmentation(image,masks,overlay_mode='both',mask_alpha=0.5,mask_nco
         masks_nonzero = masks > 0
         image[masks_nonzero] = image[masks_nonzero] * (1 - mask_alpha) + masks_rgb[masks_nonzero] * mask_alpha
 
-    else:
-
-        outline_color = (0,0,255)
-
     image = (image * 255).astype(np.uint8)
 
     if overlay_mode != 'masks':
+        
+        if outline_color is None:
+            outline_color = (255,255,255) if overlay_mode == 'both' else (0,0,255)
     
         image[_masks_to_outlines(masks)] = outline_color
 
