@@ -56,11 +56,12 @@ def overlay_segmentation(image,masks,overlay_mode='both',mask_alpha=0.5,mask_nco
         masks_rgb = _masks_to_rgb(masks_rgb,mask_ncolors,sinebow_theta)
         masks_nonzero = masks > 0
         image[masks_nonzero] = image[masks_nonzero] * (1 - mask_alpha) + masks_rgb[masks_nonzero] * mask_alpha
-        image = (image * 255).astype(np.uint8)
 
     else:
 
         outline_color = (0,0,255)
+
+    image = (image * 255).astype(np.uint8)
 
     if overlay_mode != 'masks':
     
