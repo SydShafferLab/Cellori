@@ -4,7 +4,7 @@ import numpy as np
 from cellori.netmap import get_touch_map,ncolor_label,render_net
 from skimage import exposure,measure
     
-def overlay_segmentation(image,masks,draw_outlines=True,mask_alpha=0.5,mask_ncolors=5,sinebow_theta=1,outline_color=(255,255,255),contrast_z=5,gamma=1):
+def overlay_segmentation(image,masks,overlay_mode='both',mask_alpha=0.5,mask_ncolors=5,sinebow_theta=1,outline_color=None,contrast_z=5,gamma=1):
 
     """Overlay segmentation results on the original image.
 
@@ -14,15 +14,17 @@ def overlay_segmentation(image,masks,draw_outlines=True,mask_alpha=0.5,mask_ncol
             Array of the image segmented by the Cellori algorithm.
         masks : numpy.ndarray
             Labeled array of the same size as the original image with background pixels as 0 and cells as 1, 2, 3, ..., N.
-        draw_outlines : bool, optional, default True
-            Whether or not to draw outlines of masks.
+        overlay_mode : {'both', 'masks', 'outlines'}, optional, default 'both'
+            * ‘both’: Overlay both masks and outlines.
+            * ‘masks’: Overlay masks only.
+            * ‘outlines’: Overlay outlines only.
         mask_alpha : float, optional, default 0.5
             Alpha value of the mask overlay. The value must be between 0 (transparent) and 1 (opaque).
         mask_ncolors : int, optional, default 5
             Number of colors used for coloring the mask overlay.
         sinebow_theta : float, optional, default 1
             Phase factor in radians for color generation using sinebow.
-        outline_color : tuple, optional, default (255,255,255)
+        outline_color : tuple, optional, default None
             Color of outlines in RGB, formatted as (r,g,b).
         contrast_z : float, optional, default 5
             Number of standard deviations from the mean used for intensity rescaling.
@@ -34,22 +36,34 @@ def overlay_segmentation(image,masks,draw_outlines=True,mask_alpha=0.5,mask_ncol
         image : numpy.ndarray
             Array of the same size as the original image with overlayed segmentation results.
     """
+
+    if overlay_mode not in ['both','masks','outlines']:
+        raise ValueError("Invalid overlay mode.")
     
     if gamma != 1:
         image = image ** gamma
     image = exposure.rescale_intensity(image,(0,np.mean(image) + contrast_z * np.std(image)),(0,1))
     image = np.repeat(image,3).reshape(*image.shape,3)
 
-    idx = get_touch_map(masks)
-    colors = render_net(idx, 4, 10)
-    color_label = ncolor_label(masks,colors)
-    masks_rgb = _relabel(masks,color_label)
-    masks_rgb = _masks_to_rgb(masks_rgb,mask_ncolors,sinebow_theta)
-    masks_nonzero = masks > 0
-    image[masks_nonzero] = image[masks_nonzero] * (1 - mask_alpha) + masks_rgb[masks_nonzero] * mask_alpha
-    image = (image * 255).astype(np.uint8)
+    if overlay_mode != 'outlines':
+
+        outline_color = (255,255,255)
+
+        idx = get_touch_map(masks)
+        colors = render_net(idx, 4, 10)
+        color_label = ncolor_label(masks,colors)
+        masks_rgb = _relabel(masks,color_label)
+        masks_rgb = _masks_to_rgb(masks_rgb,mask_ncolors,sinebow_theta)
+        masks_nonzero = masks > 0
+        image[masks_nonzero] = image[masks_nonzero] * (1 - mask_alpha) + masks_rgb[masks_nonzero] * mask_alpha
+        image = (image * 255).astype(np.uint8)
+
+    else:
+
+        outline_color = (0,0,255)
+
+    if overlay_mode != 'masks':
     
-    if draw_outlines:
         image[_masks_to_outlines(masks)] = outline_color
 
     return image
