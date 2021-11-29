@@ -89,6 +89,15 @@ class Cellori:
         ----------
             estimate_parameters : bool, optional, default True
                 Whether or not to run automatic parameter detection.
+            
+        Returns
+        -------
+            masks : numpy.ndarray
+                Labeled array of the same size as the original image with background pixels as 0 and cells as 1, 2, 3, ..., N. The most recent segmentation result is returned, if any.
+            coords : numpy.ndarray
+                Array of size (N, 2) with the coordinates of cell nuclei. The most recent segmentation result is returned, if any.
+            image : numpy.ndarray
+                Array of the image for use in post-processing. The most recent segmentation result is returned, if any.
         """
 
         from cellori.run_gui import run_gui
@@ -104,7 +113,12 @@ class Cellori:
         run_gui(self)
 
         if self.masks is not None:
-            return self.masks,self.all_coords,self.image
+
+            masks = self.masks
+            coords = self.all_coords
+            image = self.image
+
+            return masks,coords,image
 
     def segment(self,segmentation_mode='combined',threshold_locality=0.5,sigma=None,nuclei_diameter=None,coordinate_format='indices'):
 
@@ -132,6 +146,8 @@ class Cellori:
                 Labeled array of the same size as the original image with background pixels as 0 and cells as 1, 2, 3, ..., N.
             coords : numpy.ndarray
                 Array of size (N, 2) with the coordinates of cell nuclei.
+            image : numpy.ndarray
+                Array of the image for use in post-processing.
 
         Raises
         ------
@@ -160,7 +176,9 @@ class Cellori:
         elif coordinate_format !='indices':
             raise ValueError("Invalid coordinate format.")
 
-        return masks,coords,self.image
+        image = self.image
+
+        return masks,coords,image
 
     def _segment(self,image,watershed_labeled,segmentation_mode,threshold_locality,sigma,nuclei_diameter,origin=None):
 
@@ -395,42 +413,6 @@ class Cellori:
         
         return masks,coords
 
-    def _estimate_parameters(self):
-
-        """(For internal use) Estimate parameters for segmentation.
-        """
-
-        global_binary = cv.morphologyEx(self.global_binary.astype(np.uint8),cv.MORPH_ERODE,np.ones((3,3)))
-        global_binary = segmentation.clear_border(global_binary)
-        foreground_labeled = measure.label(global_binary)
-        regions = measure.regionprops(foreground_labeled,cache=False)
-
-        equivalent_diameters = np.array([region.equivalent_diameter for region in regions])
-        self.default_nuclei_diameter = np.around(np.median(equivalent_diameters),2)
-            
-        N = round(self.default_nuclei_diameter / 4)
-        self.default_sigma = np.around(2 ** (2 * N) / (special.comb(2 * N, N) * np.sqrt(2 * np.pi)),2)
-
-    def _indices_to_xy(self,coords):
-
-        """(For internal use) Convert array indices to XY coordinates.
-
-        Parameters
-        ----------
-            coords : numpy.ndarray
-                Array of size (N, 2) with the coordinates of cell nuclei formatted as indices of the original image array.
-        
-        Returns
-        -------
-            coords : numpy.ndarray
-                Array of size (N, 2) with the coordinates of cell nuclei formatted for plotting on standard XY axes.
-        """
-        
-        coords[:,0] = self.image.shape[0] - coords[:,0]
-        coords = np.fliplr(coords)
-
-        return coords
-
     def _conditional_local_threshold(self,image,mask,global_binary,block_size,k_max,c):
 
         """(For internal use) Calculate conditional local threshold.
@@ -477,6 +459,42 @@ class Cellori:
         threshold = threshold * mask
 
         return threshold
+
+    def _estimate_parameters(self):
+
+        """(For internal use) Estimate parameters for segmentation.
+        """
+
+        global_binary = cv.morphologyEx(self.global_binary.astype(np.uint8),cv.MORPH_ERODE,np.ones((3,3)))
+        global_binary = segmentation.clear_border(global_binary)
+        foreground_labeled = measure.label(global_binary)
+        regions = measure.regionprops(foreground_labeled,cache=False)
+
+        equivalent_diameters = np.array([region.equivalent_diameter for region in regions])
+        self.default_nuclei_diameter = np.around(np.median(equivalent_diameters),2)
+            
+        N = round(self.default_nuclei_diameter / 4)
+        self.default_sigma = np.around(2 ** (2 * N) / (special.comb(2 * N, N) * np.sqrt(2 * np.pi)),2)
+
+    def _indices_to_xy(self,coords):
+
+        """(For internal use) Convert array indices to XY coordinates.
+
+        Parameters
+        ----------
+            coords : numpy.ndarray
+                Array of size (N, 2) with the coordinates of cell nuclei formatted as indices of the original image array.
+        
+        Returns
+        -------
+            coords : numpy.ndarray
+                Array of size (N, 2) with the coordinates of cell nuclei formatted for plotting on standard XY axes.
+        """
+        
+        coords[:,0] = self.image.shape[0] - coords[:,0]
+        coords = np.fliplr(coords)
+
+        return coords
 
     def _calculate_edge_indices(self,indices,image):
 
