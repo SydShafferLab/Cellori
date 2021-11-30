@@ -136,7 +136,7 @@ def _relabel(masks,color_label):
     masks = masks + (color_label) / (np.max(color_label) + 1)
     regions = masks[masks > 0]
     float_ids = np.unique(regions)
-    int_ids = np.argsort(float_ids)
+    int_ids = np.argsort(float_ids) + 1
     id_map = dict(zip(float_ids,int_ids))
     masks[masks > 0] = _vector_map(regions,id_map)
     masks = masks.astype(int)
