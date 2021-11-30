@@ -65,11 +65,6 @@ class Cellori:
             else:
                 raise ValueError("Invalid image dimensions.")
 
-        self.nan_mask = np.where(self.image == 0,True,False)
-        self.exists_nan = np.any(self.nan_mask)
-        if self.exists_nan:
-            self.image = np.ma.masked_array(self.image,self.nan_mask)
-
         global_thresh = filters.threshold_otsu(self.image[self.image > 0])
         self.global_binary = self.image > global_thresh
         background = np.ma.masked_array(self.image,self.global_binary)
@@ -286,16 +281,6 @@ class Cellori:
         for region in regions:
             
             indices = [region.bbox[0],region.bbox[2],region.bbox[1],region.bbox[3]]
-
-            if self.exists_nan:
-
-                offset = int(((block_size) - 1) / 2)
-                neighborhood_indices = [indices[0] + origin[0] - offset,indices[1] + origin[0] + offset,indices[2] + origin[1] - offset,indices[3] + origin[1] + offset]
-                neighborhood_indices = self._calculate_edge_indices(neighborhood_indices,self.image)
-                neighborhood_nan_mask = self.nan_mask[neighborhood_indices[0]:neighborhood_indices[1],neighborhood_indices[2]:neighborhood_indices[3]]
-
-                if np.any(neighborhood_nan_mask):
-                    continue
 
             if segmentation_mode == 'combined' or segmentation_mode == 'intensity':
                 image_crop = self.image[indices[0] + origin[0]:indices[1] + origin[0],indices[2] + origin[1]:indices[3] + origin[1]]
