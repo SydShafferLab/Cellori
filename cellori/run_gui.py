@@ -7,7 +7,7 @@ from cellori.imshowfast import imshow
 from cellori.utils import _masks_to_outlines
 from matplotlib.widgets import Button,Slider,TextBox,RadioButtons
 from matplotlib.patches import Rectangle
-from PyQt5 import QtWidgets
+from PySide6 import QtWidgets
 from skimage import exposure
 
 def run_gui(Cellori):
@@ -202,7 +202,7 @@ def run_gui(Cellori):
 
         return segmentation_mode
 
-    matplotlib.use('Qt5Agg')
+    matplotlib.use('QtAgg')
 
     Cellori.image_mean = np.mean(Cellori.image)
     Cellori.image_std = np.std(Cellori.image)
