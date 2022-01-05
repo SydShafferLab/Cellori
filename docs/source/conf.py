@@ -10,8 +10,8 @@ project = 'Cellori'
 copyright = '2022, William Niu'
 author = 'William Niu'
 
-release = '3.0'
-version = '3.0'
+release = '3.2'
+version = '3.2'
 
 # -- General configuration
 
