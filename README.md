@@ -55,7 +55,7 @@ pip install cellori
 The built-in GUI is the easiest way to use the Cellori algorithm. Below is a short demo to get you started. For a more comprehensive walk-through, follow our [guided segmentation tutorial](https://cellori.readthedocs.io/en/latest/usage.html#tutorial). GUI-independent functions for obtaining masks and coordinates are also available, which you can learn more about [here](https://cellori.readthedocs.io/en/latest/api.html).
 
 ### GUI Demo
-1. Download the [sample image](https://github.com/SydShafferLab/Cellori/raw/main/docs/demo/wm989.tif) (WM989 cells).
+1. Download the [sample image](https://github.com/zjniu/Cellori/raw/main/docs/demo/wm989.tif) (WM989 cells).
 2. Create a Python script with the following lines of code. Make sure that `wm989.tif` is in your current working directory.
 ```python
 from cellori import Cellori
@@ -75,3 +75,16 @@ Cellori('wm989.tif').gui()
     * Masks: labeled array of the same size as the original image with background pixels as 0 and cells as 1, 2, 3, ..., N.
     * XY Coordinates: array of size (N, 2) with the locations of cell nuclei as coordinates for plotting on standard XY axes.
     * Array Indices: array of size (N, 2) with the locations of cell nuclei as indices of the original image array.
+7. These same segmentation outputs can be achieved without the GUI using built-in command-line functions. For more information about these functions and other helper functions for post-processing, specifically their parameters and outputs, check out the [Cellori API](https://cellori.readthedocs.io/en/latest/api.html) documentation.
+```python
+from cellori import Cellori, utils
+
+# Segment using automatic parameter detection.
+masks, coords, image = Cellori('wm989.tif').segment()
+
+# Segment using custom parameters.
+masks, coords, image = Cellori('wm989.tif').segment(segmentation_mode='combined', threshold_locality=0.5, sigma=1.06, nuclei_diameter=8.44)
+
+# Create segmentation overlay.
+overlay = utils.overlay_segmentation(image, masks)
+```

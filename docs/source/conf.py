@@ -7,11 +7,11 @@ sys.path.insert(0, os.path.abspath('../..'))
 # -- Project information
 
 project = 'Cellori'
-copyright = '2021, William Niu'
+copyright = '2022, William Niu'
 author = 'William Niu'
 
-release = '2.4'
-version = '2.4'
+release = '3.0'
+version = '3.0'
 
 # -- General configuration
 
@@ -35,6 +35,10 @@ templates_path = ['_templates']
 # -- Options for HTML output
 
 html_theme = 'sphinx_rtd_theme'
+html_static_path = ['_static']
+html_css_files = [
+    'styles.css',
+]
 
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
@@ -44,9 +48,12 @@ epub_show_urls = 'footnote'
 autodoc_member_order = 'bysource'
 autodoc_mock_imports = [
     'matplotlib',
+    'numba',
     'numpy',
     'cv2',
-    'pyqt5',
+    'pyside6',
+    'scipy',
+    'SimpleITK',
     'skimage',
     'stitchwell',
     'tifffile'

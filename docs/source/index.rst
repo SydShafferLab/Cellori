@@ -1,7 +1,7 @@
 Cellori
 ===================================
 
-**Cellori** (Cell Origin) is a fast and robust intensity-based algorithm for clustered nuclei segmentation in fluorescence microscopy images. It segments nuclei by applying a Gaussian filter to smoothen out background noise, calculating local thresholds to isolate the foreground, and splitting clustered nuclei via local maxima analysis. Masks are obtained using the watershed algorithm.
+**Cellori** (Cell Origin) is a fast and robust algorithm for clustered nuclei segmentation in fluorescence microscopy images. It segments nuclei by calculating local thresholds to isolate the foreground, splitting clustered nuclei via local maxima analysis, and then merge correcting regions to account for potential oversegmentation. Masks are obtained using the watershed algorithm.
 
 For a comprehensive walk-through, follow our :ref:`tutorial`.
 
