@@ -30,7 +30,7 @@ def run_gui(cellori):
             if event.inaxes == cellori.ax_save_masks:
                 save_data = cellori.masks
             elif event.inaxes == cellori.ax_save_xy:
-                save_data = cellori._indices_to_xy(cellori.all_coords.copy)
+                save_data = cellori._indices_to_xy(cellori.all_coords.copy())
             elif event.inaxes == cellori.ax_save_indices:
                 save_data = cellori.all_coords
 
