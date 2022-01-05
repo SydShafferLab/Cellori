@@ -18,9 +18,6 @@ class Cellori:
         nd2_overlap : float, optional, default 0.1
             The overlap percentage used by StitchWell for ND2 stitching. If ``None``, the value will be determined by
             automatic overlap calculation. This value is ignored if ``image`` is not the path to an ND2 file.
-        nd2_stitch_channel : float, optional, default 0
-            The index of the channel used by StitchWell for automatic overlap calculation during ND2 stitching. This
-            value is ignored if automatic overlap calculation is not applicable.
         nuclei_channel : int, optional, default 0
             The index of the channel containing the nuclei for segmentation. This value is ignored if ``image`` has a
             single channel.
@@ -52,8 +49,7 @@ class Cellori:
 
                 from stitchwell import StitchWell
                 nd2_overlap = kwargs.get('nd2_overlap', 0.1)
-                nd2_stitch_channel = kwargs.get('nd2_stitch_channel', 0)
-                self.image = StitchWell(image).stitch(0, nd2_overlap, nd2_stitch_channel)
+                self.image = StitchWell(image).stitch(0, nd2_overlap)
 
             elif image.endswith(('.tif', '.tiff')):
 
