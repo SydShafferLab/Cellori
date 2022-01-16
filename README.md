@@ -47,6 +47,12 @@ Segmented Image
 Install Cellori from [PyPI](https://pypi.org/project/cellori/).
 
 ```
+pip install cellori[gui]
+```
+
+To install Cellori without the GUI, run the following command instead.
+
+```
 pip install cellori
 ```
 

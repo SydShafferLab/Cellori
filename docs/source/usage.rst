@@ -10,6 +10,12 @@ Install Cellori from `PyPI <https://pypi.org/project/cellori/>`_.
 
 .. code-block::
 
+    pip install cellori[gui]
+
+To install Cellori without the GUI, run the following command instead.
+
+.. code-block::
+
     pip install cellori
     
 .. _tutorial:
