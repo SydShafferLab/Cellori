@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = "3.2"
+VERSION = "3.3"
 DESCRIPTION = "Cellori"
 LONG_DESCRIPTION = "A fast and robust algorithm for clustered nuclei segmentation."
 
@@ -13,8 +13,11 @@ setup(
     long_description_content_type="text/markdown",
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),
-    install_requires=['matplotlib', 'numba', 'numpy', 'opencv-python', 'pyside6', 'scikit-image', 'scipy', 'simpleitk',
-                      'stitchwell', 'tifffile'],
+    install_requires=['numba', 'numpy', 'opencv-python', 'scikit-image', 'scipy', 'simpleitk', 'stitchwell',
+                      'tifffile'],
+    extras_require={
+        'gui': ['matplotlib', 'pyside6']
+    },
     keywords=["nuclei", "segmentation"],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
