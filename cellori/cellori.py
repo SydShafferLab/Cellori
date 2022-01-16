@@ -421,7 +421,7 @@ class Cellori:
                             merge_test > 0] = new_cell
                         cell_map[merge_candidate] = new_cell
 
-            masks = corrected_masks
+            masks = measure.label(corrected_masks)
             regions = measure.regionprops(masks)
 
         coords = np.array([region.centroid for region in regions])
