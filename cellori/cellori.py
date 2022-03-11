@@ -1,4 +1,5 @@
 import cv2 as cv
+import dask.array as da
 import numpy as np
 import SimpleITK as sitk
 
@@ -39,7 +40,7 @@ class Cellori:
         self.default_sigma = None
         self.masks = None
 
-        if isinstance(image, np.ndarray):
+        if isinstance(image, (np.ndarray, da.array)):
 
             self.image = image
 
