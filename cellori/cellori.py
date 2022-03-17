@@ -40,7 +40,7 @@ class Cellori:
         self.default_sigma = None
         self.masks = None
 
-        if isinstance(image, (np.ndarray, da.array)):
+        if isinstance(image, (np.ndarray, da.array.Array)):
 
             self.image = image
 
