@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = "3.5"
+VERSION = "3.6"
 DESCRIPTION = "Cellori"
 LONG_DESCRIPTION = "A fast and robust algorithm for clustered nuclei segmentation."
 
