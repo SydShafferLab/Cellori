@@ -42,7 +42,7 @@ class Cellori:
 
         if isinstance(image, (np.ndarray, da.Array)):
 
-            self.image = image
+            self.image = np.asarray(image)
 
         elif Path(image).is_file():
 
