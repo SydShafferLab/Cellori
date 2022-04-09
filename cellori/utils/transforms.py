@@ -1,8 +1,9 @@
 import numpy as np
+
 from scipy import ndimage
 from skimage.measure import regionprops
-from skimage.morphology import ball, disk
 from skimage.morphology import binary_dilation
+from skimage.morphology import disk
 from skimage.segmentation import find_boundaries
 
 
@@ -14,7 +15,7 @@ def class_transform(mask, dilation_radius=None, separate_edge_classes=False):
 
     if separate_edge_classes:
 
-        strel = ball(1) if mask.ndim > 2 else disk(1)
+        strel = disk(1)
 
         # dilate the background masks and subtract from all edges for background-edges
         background = (mask == 0).astype('int')
@@ -27,7 +28,7 @@ def class_transform(mask, dilation_radius=None, separate_edge_classes=False):
 
         if dilation_radius:
 
-            dil_strel = ball(dilation_radius) if mask.ndim > 2 else disk(dilation_radius)
+            dil_strel = disk(dilation_radius)
 
             # Thicken cell edges to be more pronounced
             interior_edge = binary_dilation(interior_edge, footprint=dil_strel)
@@ -50,7 +51,7 @@ def class_transform(mask, dilation_radius=None, separate_edge_classes=False):
 
         if dilation_radius:
 
-            dil_strel = ball(dilation_radius) if mask.ndim > 2 else disk(dilation_radius)
+            dil_strel = disk(dilation_radius)
 
             # Thicken cell edges to be more pronounced
             edge = binary_dilation(edge, footprint=dil_strel)
