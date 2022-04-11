@@ -13,7 +13,7 @@ def cross_entropy_loss(p, labels, weighted=False):
     else:
         alpha = 1
 
-    cel = -np.mean(alpha * np.log(p) * labels)
+    cel = -np.mean(alpha * np.log(p + 1e-7) * labels)
 
     return cel
 
@@ -24,7 +24,7 @@ def focal_loss(p, labels, gamma, weighted=False):
     else:
         alpha = 1
 
-    fl = -np.mean(alpha * (1 - p) ** gamma * np.log(p) * labels)
+    fl = -np.mean(alpha * (1 - p) ** gamma * np.log(p + 1e-7) * labels)
 
     return fl
 
