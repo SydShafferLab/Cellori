@@ -11,7 +11,6 @@ ModuleDef = Any
 class FPNBlock(nn.Module):
     conv: ModuleDef = nn.Conv
     convt: ModuleDef = nn.ConvTranspose
-    norm: ModuleDef = nn.BatchNorm
     upsample: str = 'interpolate'
     name: str = None
 
