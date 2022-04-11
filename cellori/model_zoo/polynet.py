@@ -39,8 +39,8 @@ class PolyHead(nn.Module):
 class PolyNet(nn.Module):
 
     fpn: ModuleDef
-    conv: nn.Conv
-    norm: nn.BatchNorm
+    conv: ModuleDef = nn.Conv
+    norm: ModuleDef = nn.BatchNorm
     semantic_heads: Tuple[int] = (1, 3)
 
     @nn.compact
