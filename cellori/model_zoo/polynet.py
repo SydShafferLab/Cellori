@@ -69,7 +69,7 @@ class PolyNet(nn.Module):
             f = PolyHead(
                 conv=conv,
                 norm=norm,
-                act_final=nn.activation.softmax if num_classes > 1 else nn.activation.swish,
+                act_final=nn.activation.softmax if num_classes > 1 else nn.activation.relu,
                 num_classes=num_classes,
                 name='semantic{}_'.format(i + 1)
             )(agg_features)
