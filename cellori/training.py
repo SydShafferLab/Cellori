@@ -42,21 +42,21 @@ def create_train_state(rng, learning_rate):
 
 
 def loss_fn(params, batch_stats, batch):
-    poly_features, _ = Cellori().apply(
+    poly_features, mutated_vars = Cellori().apply(
         {'params': params, 'batch_stats': batch_stats}, batch['image'],
         mutable=['batch_stats']
     )
     metrics = compute_metrics(poly_features, batch)
     loss = metrics['total']
-    return loss, metrics
+    return loss, (metrics, mutated_vars)
 
 
 @jax.jit
 def train_step(state, batch):
 
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-    (_, metrics), grads = grad_fn(state.params, state.batch_stats, batch)
-    state = state.apply_gradients(grads=grads)
+    (_, (metrics, mutated_vars)), grads = grad_fn(state.params, state.batch_stats, batch)
+    state = state.apply_gradients(grads=grads, batch_stats=mutated_vars['batch_stats'])
 
     return state, metrics
 
