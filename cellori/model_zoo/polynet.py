@@ -41,7 +41,7 @@ class PolyNet(nn.Module):
     fpn: ModuleDef
     conv: ModuleDef = nn.Conv
     norm: ModuleDef = nn.BatchNorm
-    semantic_heads: Tuple[Tuple[int, ModuleDef]]
+    semantic_heads: Tuple[Tuple[int, ModuleDef]] = ((1, nn.relu), (3, nn.softmax))
 
     @nn.compact
     def __call__(self, x, train: bool = True):
