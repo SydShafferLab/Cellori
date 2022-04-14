@@ -1,7 +1,9 @@
+from functools import partial
+from flax import linen as nn
+
 from cellori.model_zoo import EfficientNetV2S
 from cellori.model_zoo import FPN
 from cellori.model_zoo import PolyNet
-from functools import partial
 
 EfficientFPN = partial(
     FPN,
@@ -13,5 +15,5 @@ EfficientFPN = partial(
 Cellori = partial(
     PolyNet,
     fpn=EfficientFPN,
-    semantic_heads=(1, 3)
+    semantic_heads=((1, nn.relu), (3, nn.softmax))
 )

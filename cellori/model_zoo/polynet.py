@@ -41,7 +41,7 @@ class PolyNet(nn.Module):
     fpn: ModuleDef
     conv: ModuleDef = nn.Conv
     norm: ModuleDef = nn.BatchNorm
-    semantic_heads: Tuple[int] = (1, 3)
+    semantic_heads: Tuple[Tuple[int, ModuleDef]]
 
     @nn.compact
     def __call__(self, x, train: bool = True):
@@ -65,11 +65,11 @@ class PolyNet(nn.Module):
         poly_features = []
 
         # Process aggregate feature map through semantic heads
-        for i, num_classes in enumerate(self.semantic_heads):
+        for i, (num_classes, act_final) in enumerate(self.semantic_heads):
             f = PolyHead(
                 conv=conv,
                 norm=norm,
-                act_final=nn.activation.softmax if num_classes > 1 else nn.activation.relu,
+                act_final=act_final,
                 num_classes=num_classes,
                 name='semantic{}_'.format(i + 1)
             )(agg_features)
