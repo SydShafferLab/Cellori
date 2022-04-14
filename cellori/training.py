@@ -7,8 +7,9 @@ from abc import ABC
 from flax.training import train_state
 from typing import Any
 
-from .cellori import Cellori
-from .losses import focal_loss, mean_squared_error
+from cellori.cellori import Cellori
+from cellori.utils.data import generate_cellpose_dataset
+from cellori.losses import focal_loss, mean_squared_error
 
 
 def compute_metrics(poly_features, batch):
@@ -61,8 +62,12 @@ def train_step(state, batch):
     return state, metrics
 
 
-def train_epoch(state, train_ds, batch_size, epoch, rng):
+def train_epoch(state, train, batch_size, epoch, rng):
     """Train for a single epoch."""
+
+    rng, subrng = jax.random.split(rng)
+    train_ds = generate_cellpose_dataset(*train, subrng)
+
     train_ds_size = len(train_ds['image'])
     steps_per_epoch = train_ds_size // batch_size
 
