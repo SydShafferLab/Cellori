@@ -71,16 +71,12 @@ def generate_cellpose_dataset(X, y, key, resize_diameter=30, output_shape=(384, 
 
         # Random rotation
         key, subkey = random.split(key)
-        theta = random.uniform(subkey) * 2 * np.pi
+        theta = random.uniform(subkey) * 360
 
         # Construct affine transformation
-        c0 = np.array(mask.shape) / 2
-        cf = np.array(output_shape) / 2 + dxy
-        pts1 = np.float32([c0, c0 + np.array([1, 0]), c0 + np.array([0, 1])])
-        pts2 = np.float32([cf,
-                           cf + scale * np.array([np.cos(theta), np.sin(theta)]),
-                           cf + scale * np.array([np.cos(np.pi / 2 + theta), np.sin(np.pi / 2 + theta)])])
-        affine = cv.getAffineTransform(pts1, pts2)
+        image_center = np.flip(mask.shape) / 2
+        affine = cv.getRotationMatrix2D(image_center, float(theta), float(scale))
+        affine[:, 2] += np.array(output_shape) / 2 - image_center + dxy
 
         # Apply affine transformation
         image = cv.warpAffine(image, affine, dsize=output_shape, flags=cv.INTER_LINEAR)
