@@ -4,6 +4,7 @@ import numpy as onp
 import optax
 
 from abc import ABC
+from dataclasses import replace
 from flax.training import train_state
 from typing import Any
 
@@ -27,18 +28,21 @@ def compute_metrics(poly_features, batch):
 
 class TrainState(train_state.TrainState, ABC):
     batch_stats: Any
+    rng: Any
 
 
 def create_train_state(rng, learning_rate, variables=None):
     """Creates initial `TrainState`."""
+    rng, subrng = jax.random.split(rng)
     model = Cellori()
     if variables is None:
-      variables = model.init(rng, np.ones((1, 384, 384, 2)))
+      variables = model.init(subrng, np.ones((1, 384, 384, 2)))
     tx = optax.adam(learning_rate)
     return TrainState.create(
         apply_fn=model.apply,
         params=variables['params'],
         batch_stats=variables['batch_stats'],
+        rng=rng,
         tx=tx,
     )
 
@@ -63,16 +67,17 @@ def train_step(state, batch):
     return state, metrics
 
 
-def train_epoch(state, train, batch_size, epoch, rng):
+def train_epoch(state, train, batch_size, epoch):
     """Train for a single epoch."""
 
-    rng, subrng = jax.random.split(rng)
-    train_ds = generate_cellpose_dataset(*train, subrng)
+    rng, *subrngs = jax.random.split(state.rng, 3)
+    state = replace(state, rng=rng)
+    train_ds = generate_cellpose_dataset(*train, subrngs[0])
 
     train_ds_size = len(train_ds['image'])
     steps_per_epoch = train_ds_size // batch_size
 
-    perms = jax.random.permutation(rng, train_ds_size)
+    perms = jax.random.permutation(subrngs[1], train_ds_size)
     perms = perms[:steps_per_epoch * batch_size]  # skip incomplete batch
     perms = perms.reshape((steps_per_epoch, batch_size))
     batch_metrics = []
@@ -84,10 +89,10 @@ def train_epoch(state, train, batch_size, epoch, rng):
     # compute mean of metrics across each batch in epoch.
     batch_metrics_np = jax.device_get(batch_metrics)
     epoch_metrics_np = {
-        k: onp.mean([metrics[k] for metrics in batch_metrics_np])
+        k: onp.mean([metrics[k] for metrics in batch_metrics_np]).astype(float)
         for k in batch_metrics_np[0]}
 
     print('train epoch: %d, loss: %.4f, mse: %.4f, fl: %.4f' % (
         epoch, epoch_metrics_np['total'], epoch_metrics_np['mse'], epoch_metrics_np['fl']))
 
-    return state
+    return state, epoch_metrics_np
