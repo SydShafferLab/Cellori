@@ -1,25 +1,25 @@
 import numpy as np
 
 from scipy import ndimage
-from skimage.measure import regionprops
-from skimage.morphology import binary_dilation
-from skimage.morphology import disk
-from skimage.segmentation import find_boundaries
+from skimage import filters
+from skimage import measure
+from skimage import morphology
+from skimage import segmentation
 
 
 def class_transform(mask, dilation_radius=None, separate_edge_classes=False):
 
     # Detect the edges and interiors
-    edge = find_boundaries(mask, mode='inner').astype('int')
+    edge = segmentation.find_boundaries(mask, mode='inner').astype('int')
     interior = ((edge == 0) & (mask > 0)).astype(int)
 
     if separate_edge_classes:
 
-        strel = disk(1)
+        strel = morphology.disk(1)
 
         # dilate the background masks and subtract from all edges for background-edges
         background = (mask == 0).astype('int')
-        dilated_background = binary_dilation(background, strel)
+        dilated_background = morphology.binary_dilation(background, strel)
 
         background_edge = (edge - dilated_background > 0).astype('int')
 
@@ -27,12 +27,11 @@ def class_transform(mask, dilation_radius=None, separate_edge_classes=False):
         interior_edge = (edge - background_edge > 0).astype('int')
 
         if dilation_radius:
-
-            dil_strel = disk(dilation_radius)
+            dil_strel = morphology.disk(dilation_radius)
 
             # Thicken cell edges to be more pronounced
-            interior_edge = binary_dilation(interior_edge, footprint=dil_strel)
-            background_edge = binary_dilation(background_edge, footprint=dil_strel)
+            interior_edge = morphology.binary_dilation(interior_edge, footprint=dil_strel)
+            background_edge = morphology.binary_dilation(background_edge, footprint=dil_strel)
 
             # Thin the augmented edges by subtracting the interior features.
             interior_edge = (interior_edge - interior > 0).astype('int')
@@ -41,20 +40,19 @@ def class_transform(mask, dilation_radius=None, separate_edge_classes=False):
         background = (1 - background_edge - interior_edge - interior > 0).astype('int')
 
         all_stacks = [
-            background_edge,
-            interior_edge,
+            background,
             interior,
-            background
+            interior_edge,
+            background_edge
         ]
 
     else:
 
         if dilation_radius:
-
-            dil_strel = disk(dilation_radius)
+            dil_strel = morphology.disk(dilation_radius)
 
             # Thicken cell edges to be more pronounced
-            edge = binary_dilation(edge, footprint=dil_strel)
+            edge = morphology.binary_dilation(edge, footprint=dil_strel)
 
             # Thin the augmented edges by subtracting the interior features.
             edge = (edge - interior > 0).astype('int')
@@ -62,9 +60,9 @@ def class_transform(mask, dilation_radius=None, separate_edge_classes=False):
         background = (1 - edge - interior > 0).astype('int')
 
         all_stacks = [
-            edge,
+            background,
             interior,
-            background
+            edge,
         ]
 
     return np.stack(all_stacks, axis=-1)
@@ -81,9 +79,9 @@ def distance_transform(mask, mode='combined', alpha=0.1, beta=1, bins=None):
     mask = np.squeeze(mask)
     outer_distance_transform = ndimage.distance_transform_edt(mask)
 
-    distance_transform = np.zeros_like(mask, dtype=float)
+    transform = np.zeros_like(mask, dtype=float)
 
-    for region in regionprops(mask, outer_distance_transform):
+    for region in measure.regionprops(mask, outer_distance_transform):
 
         coords = region.coords
         i, j = coords.T
@@ -104,20 +102,23 @@ def distance_transform(mask, mode='combined', alpha=0.1, beta=1, bins=None):
             elif mode == 'combined':
                 distance = outer_distance_transform[i, j] * _inner_distance(coords, center, area, alpha, beta)
 
-        distance_transform[i, j] = distance / distance.max()
+        transform[i, j] = distance / distance.max()
+
+    transform = filters.gaussian(transform)
+    transform = filters.unsharp_mask(transform)
+    transform = transform / transform.max()
 
     if bins:
-
         # divide into bins
-        min_dist = np.amin(distance_transform.flatten())
-        max_dist = np.amax(distance_transform.flatten())
+        min_dist = np.amin(transform.flatten())
+        max_dist = np.amax(transform.flatten())
         distance_bins = np.linspace(min_dist - 1e-7,
                                     max_dist + 1e-7,
                                     num=bins + 1)
-        distance_transform = np.digitize(distance_transform, distance_bins, right=True)
-        distance_transform = distance_transform - 1  # minimum distance should be 0, not 1
+        transform = np.digitize(transform, distance_bins, right=True)
+        transform = transform - 1  # minimum distance should be 0, not 1
 
-    return distance_transform
+    return transform
 
 
 def _inner_distance(coords, center, area, alpha, beta):
