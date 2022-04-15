@@ -106,7 +106,7 @@ def distance_transform(mask, mode='combined', alpha=0.1, beta=1, bins=None):
 
     transform = filters.gaussian(transform)
     transform = filters.unsharp_mask(transform)
-    transform = transform / transform.max()
+    transform = transform / (transform.max() + 1e-7)
 
     if bins:
         # divide into bins
