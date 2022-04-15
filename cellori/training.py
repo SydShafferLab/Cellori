@@ -29,10 +29,11 @@ class TrainState(train_state.TrainState, ABC):
     batch_stats: Any
 
 
-def create_train_state(rng, learning_rate):
+def create_train_state(rng, learning_rate, variables=None):
     """Creates initial `TrainState`."""
     model = Cellori()
-    variables = model.init(rng, np.ones((1, 384, 384, 2)))
+    if variables is None:
+      variables = model.init(rng, np.ones((1, 384, 384, 2)))
     tx = optax.adam(learning_rate)
     return TrainState.create(
         apply_fn=model.apply,
