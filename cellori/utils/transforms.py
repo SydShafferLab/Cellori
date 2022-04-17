@@ -94,13 +94,10 @@ def distance_transform(mask, mode='combined', alpha=0.1, beta=1, bins=None):
 
         else:
 
-            center = region.weighted_centroid
-            area = region.area
-
             if mode == 'inner':
-                distance = _inner_distance(coords, center, area, alpha, beta)
+                distance = _inner_distance(region, alpha, beta)
             elif mode == 'combined':
-                distance = outer_distance_transform[i, j] * _inner_distance(coords, center, area, alpha, beta)
+                distance = outer_distance_transform[i, j] * _inner_distance(region, alpha, beta)
 
         transform[i, j] = distance / distance.max()
 
@@ -121,13 +118,13 @@ def distance_transform(mask, mode='combined', alpha=0.1, beta=1, bins=None):
     return transform
 
 
-def _inner_distance(coords, center, area, alpha, beta):
+def _inner_distance(region, alpha, beta):
 
-    center_distance = np.sum((coords - center) ** 2, axis=1)
+    center_distance = np.sum((region.coords - region.weighted_centroid) ** 2, axis=1)
 
     # Determine alpha to use
     if alpha == 'auto':
-        _alpha = 1 / np.sqrt(area)
+        _alpha = 2 / region.equivalent_diameter_area
     else:
         _alpha = float(alpha)
 
