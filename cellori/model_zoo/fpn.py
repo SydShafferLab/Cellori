@@ -114,6 +114,6 @@ class FPN(nn.Module):
         )(agg_features)
         agg_features = self.act(agg_features)
         final_shape = (bottom_shape[0], 2 * bottom_shape[1], 2 * bottom_shape[2], bottom_shape[3])
-        agg_features = image.resize(agg_features, shape=final_shape, method='nearest')
+        agg_features = image.resize(agg_features, shape=final_shape, method='bilinear')
 
         return agg_features
