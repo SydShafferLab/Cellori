@@ -9,11 +9,11 @@ def mean_squared_error(y_pred, y_true):
 
 def binary_cross_entropy_loss(p, labels, weighted=False):
     if weighted:
-        alpha = 1 - np.sum(labels) / np.prod(np.array(labels.shape))
+        alpha = 2 * (1 - np.sum(labels) / np.prod(np.array(labels.shape)))
     else:
         alpha = 1
 
-    cel = -np.mean(alpha * np.log(p + 1e-7) * labels + (1 - alpha) * np.log((1 - p) + 1e-7) * (1 - labels))
+    cel = -np.mean(alpha * np.log(p + 1e-7) * labels + (2 - alpha) * np.log((1 - p) + 1e-7) * (1 - labels))
 
     return cel
 
