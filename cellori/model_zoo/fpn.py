@@ -48,7 +48,7 @@ class FPN(nn.Module):
     backbone: ModuleDef
     conv: ModuleDef = nn.Conv
     norm: ModuleDef = nn.BatchNorm
-    act: Callable = nn.activation.swish
+    act: Callable = nn.swish
     backbone_levels: list = field(default_factory=list)
     upsample: str = 'interpolate'
 

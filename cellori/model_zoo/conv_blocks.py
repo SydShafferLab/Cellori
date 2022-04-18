@@ -7,7 +7,7 @@ ModuleDef = Any
 class MBConvBlock(nn.Module):
     conv: ModuleDef
     norm: ModuleDef
-    act: Callable = nn.activation.swish
+    act: Callable = nn.swish
     input_filters: int = 32
     output_filters: int = 16
     expand_ratio: int = 1
@@ -63,7 +63,7 @@ class MBConvBlock(nn.Module):
                 use_bias=True,
                 name=self.name + 'se_expand'
             )(se)
-            se = nn.activation.sigmoid(se)
+            se = nn.sigmoid(se)
 
             x = x * se
 
@@ -92,7 +92,7 @@ class MBConvBlock(nn.Module):
 class FusedMBConvBlock(nn.Module):
     conv: ModuleDef
     norm: ModuleDef
-    act: Callable = nn.activation.swish
+    act: Callable = nn.swish
     input_filters: int = 32
     output_filters: int = 16
     expand_ratio: int = 1
@@ -136,7 +136,7 @@ class FusedMBConvBlock(nn.Module):
                 use_bias=True,
                 name=self.name + 'se_expand'
             )(se)
-            se = nn.activation.sigmoid(se)
+            se = nn.sigmoid(se)
 
             x = x * se
 

@@ -32,7 +32,7 @@ def round_repeats(repeats, depth_coefficient):
 class EfficientNet(CaptureModule):
     conv: ModuleDef = nn.Conv
     norm: ModuleDef = nn.BatchNorm
-    act: Callable = nn.activation.swish
+    act: Callable = nn.swish
     blocks_args: list = None
     default_size: int = 224
     drop_connect_rate: float = 0.2
