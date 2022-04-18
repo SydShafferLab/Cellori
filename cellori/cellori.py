@@ -15,5 +15,5 @@ EfficientFPN = partial(
 Cellori = partial(
     PolyNet,
     fpn=EfficientFPN,
-    semantic_heads=((1, nn.relu), (3, nn.softmax))
+    semantic_heads=((1, nn.sigmoid), (3, nn.softmax))
 )
