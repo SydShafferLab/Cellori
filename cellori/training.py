@@ -16,7 +16,7 @@ from cellori.losses import focal_loss, mean_squared_error
 def compute_metrics(poly_features, batch):
     distance_transform_pred, class_transform_pred = poly_features
     mse = mean_squared_error(distance_transform_pred, batch['distance_transform'])
-    fl = focal_loss(class_transform_pred, batch['class_transform'], gamma=2, weighted=True)
+    fl = focal_loss(class_transform_pred, batch['class_transform'], gamma=2, alpha=0.5)
     loss = mse + fl
     metrics = {
         'mse': mse,
