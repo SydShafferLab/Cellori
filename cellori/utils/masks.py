@@ -11,7 +11,7 @@ def generate_mask(distance_transform, class_transform):
     class_transform = np.array(class_transform)
 
     # Find local maxima
-    coords = feature.peak_local_max(distance_transform, min_distance=3, threshold_abs=0.5, exclude_border=False)
+    coords = feature.peak_local_max(distance_transform, min_distance=3, threshold_abs=0.25, exclude_border=False)
 
     # Reverse class transform one-hot encoding
     class_transform = np.argmax(class_transform, axis=-1)

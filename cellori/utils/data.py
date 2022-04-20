@@ -82,7 +82,7 @@ def generate_cellpose_dataset(X, y, key, resize_diameter=30, output_shape=(384, 
         image = cv.warpAffine(image, affine, dsize=output_shape, flags=cv.INTER_LINEAR)
         image = (image - np.min(image)) / (np.ptp(image) + 1e-7)
         mask = cv.warpAffine(mask, affine, dsize=output_shape, flags=cv.INTER_NEAREST)
-        distance_transform = transforms.distance_transform(mask, alpha='auto', beta=3)
+        distance_transform = transforms.distance_transform(mask, alpha='auto', beta=2)
         class_transform = transforms.class_transform(mask)
 
         dataset['image'].append(image)
