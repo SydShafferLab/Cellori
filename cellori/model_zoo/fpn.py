@@ -20,7 +20,7 @@ class FPNBlock(nn.Module):
         # Upsample pyramid level
         if self.upsample == 'interpolate':
             shape = (x.shape[0], 2 * x.shape[1], 2 * x.shape[2], x.shape[3])
-            x = image.resize(x, shape=shape, method='nearest')
+            x = image.resize(x, shape=shape, method='bilinear')
         elif self.upsample == 'conv':
             x = self.convt(
                 features=x.shape[-1],
@@ -88,7 +88,7 @@ class FPN(nn.Module):
 
         # Resize feature maps
         for i in range(len(features[:-1])):
-            features[i] = image.resize(features[i], shape=bottom_shape, method='nearest')
+            features[i] = image.resize(features[i], shape=bottom_shape, method='bilinear')
 
         # 3x3 convolution on each feature map
         for i in range(len(features)):
