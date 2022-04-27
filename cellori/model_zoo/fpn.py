@@ -52,6 +52,7 @@ class FPN(nn.Module):
     backbone_levels: list = field(default_factory=list)
     backbone_args: dict = field(default_factory=dict)
     upsample: str = 'interpolate'
+    aggregate_mode: str = 'sum'
     final_shape: Tuple[int, int] = (256, 256)
 
     @nn.compact
@@ -100,7 +101,10 @@ class FPN(nn.Module):
             )(features[i])
 
         # Aggregate feature maps
-        agg_features = np.sum(np.array(features), axis=0)
+        if self.aggregate_mode == 'sum':
+            agg_features = np.sum(np.array(features), axis=0)
+        elif self.aggregate_mode == 'concatenate':
+            agg_features = np.concatenate(features, axis=-1)
 
         # Final phase
         agg_features = self.conv(
