@@ -3,7 +3,7 @@ import jax.numpy as np
 from dataclasses import field
 from flax import linen as nn
 from jax import image
-from typing import Any, Callable
+from typing import Any, Callable, Tuple
 
 ModuleDef = Any
 
@@ -50,13 +50,15 @@ class FPN(nn.Module):
     norm: ModuleDef = nn.BatchNorm
     act: Callable = nn.swish
     backbone_levels: list = field(default_factory=list)
+    backbone_args: dict = field(default_factory=dict)
     upsample: str = 'interpolate'
+    final_shape: Tuple[int, int] = (256, 256)
 
     @nn.compact
     def __call__(self, x, train: bool = True):
 
         # Get backbone outputs
-        _, outputs = self.backbone()(x, train=train, capture_list=self.backbone_levels)
+        _, outputs = self.backbone(**self.backbone_args)(x, train=train, capture_list=self.backbone_levels)
         backbone_levels = sorted(outputs.keys(), reverse=True)
         final_output = outputs[backbone_levels.pop(0)][0]
 
@@ -113,7 +115,8 @@ class FPN(nn.Module):
             name="final_bn"
         )(agg_features)
         agg_features = self.act(agg_features)
-        final_shape = (bottom_shape[0], 2 * bottom_shape[1], 2 * bottom_shape[2], bottom_shape[3])
-        agg_features = image.resize(agg_features, shape=final_shape, method='bilinear')
+        if bottom_shape[1:3] != self.final_shape:
+            final_shape = (bottom_shape[0], *self.final_shape, bottom_shape[3])
+            agg_features = image.resize(agg_features, shape=final_shape, method='bilinear')
 
         return agg_features

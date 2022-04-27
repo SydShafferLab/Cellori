@@ -34,6 +34,7 @@ class EfficientNetV2(CaptureModule):
     conv: ModuleDef = nn.Conv
     norm: ModuleDef = nn.BatchNorm
     act: Callable = nn.swish
+    stem_strides: int = 2
     blocks_args: list = None
     default_size: int = None
     drop_connect_rate: float = 0.2
@@ -68,7 +69,7 @@ class EfficientNetV2(CaptureModule):
         x = conv(
             features=self.blocks_args[0][0]['input_filters'],
             kernel_size=(3, 3),
-            strides=2,
+            strides=self.stem_strides,
             name="stem_conv",
         )(x)
         x = norm(
