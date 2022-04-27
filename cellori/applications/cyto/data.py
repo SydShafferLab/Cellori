@@ -7,9 +7,9 @@ from imageio import imread
 from jax import random
 from skimage import measure
 
-from cellori.utils import transforms
+from cellori.utils import dynamics
 
-def load_cellpose_dataset(train, test):
+def load_dataset(train, test):
 
     def load_folder(folder):
 
@@ -35,12 +35,12 @@ def load_cellpose_dataset(train, test):
     return X_train, y_train, X_test, y_test
 
 
-def generate_cellpose_dataset(X, y, key, resize_diameter=30, output_shape=(384, 384)):
+def generate_dataset(X, y, key, resize_diameter=30, output_shape=(256, 256)):
 
     dataset = {
         'image': [],
-        'distance_transform': [],
-        'class_transform': []
+        'gradients': [],
+        'semantic': []
     }
 
     for image, mask in zip(X, y):
@@ -82,15 +82,14 @@ def generate_cellpose_dataset(X, y, key, resize_diameter=30, output_shape=(384, 
         image = cv.warpAffine(image, affine, dsize=output_shape, flags=cv.INTER_LINEAR)
         image = (image - np.min(image)) / (np.ptp(image) + 1e-7)
         mask = cv.warpAffine(mask, affine, dsize=output_shape, flags=cv.INTER_NEAREST)
-        distance_transform = transforms.distance_transform(mask, alpha='auto', beta=2)
-        class_transform = transforms.class_transform(mask)
+        gradients = np.moveaxis(dynamics.masks_to_flows(mask), 0, 2)
 
         dataset['image'].append(image)
-        dataset['distance_transform'].append(distance_transform)
-        dataset['class_transform'].append(class_transform)
+        dataset['gradients'].append(gradients)
+        dataset['semantic'].append(mask > 0)
 
     dataset['image'] = np.array(dataset['image'])
-    dataset['distance_transform'] = np.array(dataset['distance_transform'])[:, :, :, None]
-    dataset['class_transform'] = np.array(dataset['class_transform'])
+    dataset['gradients'] = np.array(dataset['gradients'])
+    dataset['semantic'] = np.array(dataset['semantic'])[:, :, :, None]
 
     return dataset

@@ -8,19 +8,21 @@ from dataclasses import replace
 from flax.training import train_state
 from typing import Any
 
-from cellori.cellori import Cellori
-from cellori.utils.data import generate_cellpose_dataset
-from cellori.losses import focal_loss, mean_squared_error
+from cellori.applications.cyto.data import generate_dataset
+from cellori.applications.cyto.model import CelloriCytoModel
+from cellori.utils.losses import binary_cross_entropy_loss, mean_squared_error
 
 
 def compute_metrics(poly_features, batch):
-    distance_transform_pred, class_transform_pred = poly_features
-    mse = mean_squared_error(distance_transform_pred, batch['distance_transform'])
-    fl = focal_loss(class_transform_pred, batch['class_transform'], gamma=2, alpha=0.5)
-    loss = mse + fl
+    vertical_gradients_pred, horizontal_gradients_pred, semantic_pred = poly_features
+    mse1 = mean_squared_error(vertical_gradients_pred, 5 * batch['gradients'][:, :, :, 0:1])
+    mse2 = mean_squared_error(horizontal_gradients_pred, 5 * batch['gradients'][:, :, :, 1:2])
+    cel = binary_cross_entropy_loss(semantic_pred, batch['semantic'])
+    loss = mse1 + mse2 + cel
     metrics = {
-        'mse': mse,
-        'fl': fl,
+        'mse1': mse1,
+        'mse2': mse2,
+        'cel': cel,
         'total': loss
     }
     return metrics
@@ -34,9 +36,9 @@ class TrainState(train_state.TrainState, ABC):
 def create_train_state(rng, learning_rate, variables=None):
     """Creates initial `TrainState`."""
     rng, subrng = jax.random.split(rng)
-    model = Cellori()
+    model = CelloriCytoModel()
     if variables is None:
-      variables = model.init(subrng, np.ones((1, 384, 384, 2)))
+        variables = model.init(subrng, np.ones((1, 256, 256, 2)))
     tx = optax.adam(learning_rate)
     return TrainState.create(
         apply_fn=model.apply,
@@ -48,7 +50,7 @@ def create_train_state(rng, learning_rate, variables=None):
 
 
 def loss_fn(params, batch_stats, batch):
-    poly_features, mutated_vars = Cellori().apply(
+    poly_features, mutated_vars = CelloriCytoModel().apply(
         {'params': params, 'batch_stats': batch_stats}, batch['image'],
         mutable=['batch_stats']
     )
@@ -72,7 +74,7 @@ def train_epoch(state, train, batch_size, epoch):
 
     rng, *subrngs = jax.random.split(state.rng, 3)
     state = replace(state, rng=rng)
-    train_ds = generate_cellpose_dataset(*train, subrngs[0])
+    train_ds = generate_dataset(*train, subrngs[0])
 
     train_ds_size = len(train_ds['image'])
     steps_per_epoch = train_ds_size // batch_size
@@ -92,7 +94,7 @@ def train_epoch(state, train, batch_size, epoch):
         k: onp.mean([metrics[k] for metrics in batch_metrics_np]).astype(float)
         for k in batch_metrics_np[0]}
 
-    print('train epoch: %d, loss: %.4f, mse: %.4f, fl: %.4f' % (
-        epoch, epoch_metrics_np['total'], epoch_metrics_np['mse'], epoch_metrics_np['fl']))
+    print('train epoch: %d, loss: %.4f, mse1: %.4f, mse2: %.4f, cel: %.4f' % (
+        epoch, epoch_metrics_np['total'], epoch_metrics_np['mse1'], epoch_metrics_np['mse2'], epoch_metrics_np['cel']))
 
     return state, epoch_metrics_np

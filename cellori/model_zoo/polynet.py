@@ -31,7 +31,8 @@ class PolyHead(nn.Module):
             features=self.num_classes,
             name=self.name + 'final_conv'
         )(x)
-        x = self.act_final(x)
+        if self.act_final is not None:
+            x = self.act_final(x)
 
         return x
 
