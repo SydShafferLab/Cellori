@@ -192,8 +192,8 @@ EfficientNetV2B3 = build_efficientnetv2(
 
 EfficientNetV2XS = build_efficientnetv2(
     model_name="efficientnetv2-xs",
-    width_coefficient=1.0,
-    depth_coefficient=1.0,
+    width_coefficient=1.1,
+    depth_coefficient=1.2,
     default_size=256
 )
 

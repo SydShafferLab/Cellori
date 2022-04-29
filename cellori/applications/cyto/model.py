@@ -6,16 +6,16 @@ from cellori.model_zoo import FPN
 from cellori.model_zoo import PolyNet
 
 backbone = partial(
-    EfficientNetV2XS,
-    drop_connect_rate=0
+    EfficientNetV2XS
 )
 
 EfficientFPN = partial(
     FPN,
     backbone=backbone,
-    backbone_levels={'C1', 'C2', 'C3', 'C4'},
+    backbone_levels={'C1', 'C2', 'C3', 'C4', 'C5'},
+    backbone_args={'stem_strides': 1},
     upsample='interpolate',
-    aggregate_mode='concatenate',
+    aggregate_mode='sum',
     final_shape=(256, 256)
 )
 

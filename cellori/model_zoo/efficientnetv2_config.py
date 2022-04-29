@@ -2,7 +2,7 @@ DEFAULT_BLOCKS_ARGS = {
     "efficientnetv2-xs": [
         {
             "kernel_size": (3, 3),
-            "num_repeat": 4,
+            "num_repeat": 2,
             "input_filters": 24,
             "output_filters": 24,
             "expand_ratio": 1,
@@ -11,7 +11,7 @@ DEFAULT_BLOCKS_ARGS = {
             "conv_type": 1,
         }, {
             "kernel_size": (3, 3),
-            "num_repeat": 8,
+            "num_repeat": 2,
             "input_filters": 24,
             "output_filters": 48,
             "expand_ratio": 4,
@@ -19,24 +19,33 @@ DEFAULT_BLOCKS_ARGS = {
             "strides": 2,
             "conv_type": 1,
         }, {
-            "conv_type": 0,
+            "conv_type": 1,
             "expand_ratio": 4,
             "input_filters": 48,
             "kernel_size": (3, 3),
-            "num_repeat": 8,
+            "num_repeat": 4,
             "output_filters": 64,
+            "se_ratio": 0,
+            "strides": 2,
+        }, {
+            "conv_type": 0,
+            "expand_ratio": 4,
+            "input_filters": 64,
+            "kernel_size": (3, 3),
+            "num_repeat": 4,
+            "output_filters": 96,
             "se_ratio": 0.25,
             "strides": 2,
         }, {
             "conv_type": 0,
             "expand_ratio": 6,
-            "input_filters": 64,
+            "input_filters": 96,
             "kernel_size": (3, 3),
-            "num_repeat": 16,
+            "num_repeat": 8,
             "output_filters": 128,
             "se_ratio": 0.25,
             "strides": 2,
-        }
+        },
     ],
     "efficientnetv2-s": [
         {
