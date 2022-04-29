@@ -71,7 +71,7 @@ def _extend_centers_gpu(neighbors, centers, isneighbor, Ly, Lx, n_iter=200, devi
     dy = grads[:, 0] - grads[:, 1]
     dx = grads[:, 2] - grads[:, 3]
 
-    mu_torch = np.stack((dy.cpu().squeeze(), dx.cpu().squeeze()), axis=-2)
+    mu_torch = np.stack((dy[0].cpu(), dx[0].cpu()), axis=-2)
     return mu_torch
 
 
@@ -113,18 +113,19 @@ def masks_to_flows_gpu(masks):
     # get mask centers
     regions = measure.regionprops(measure.label(masks))
     slices = [region.slice for region in regions]
-    centers = np.rint([region.centroid for region in regions]).astype(int)
+    centers = np.zeros((masks.max(), 2), 'int')
 
-    for i, (si, center) in enumerate(zip(slices, centers)):
+    for i, si in enumerate(slices):
 
-        if masks[center[0], center[1]] != i + 1:
-            sr, sc = si
-            yi, xi = np.where(masks[sr, sc] == (i + 1)) + np.array([[sr.start], [sc.start]])
-            imin = np.argmin((xi - center[1]) ** 2 + (yi - center[0]) ** 2)
-            xmed = xi[imin]
-            ymed = yi[imin]
-            centers[i, 0] = ymed
-            centers[i, 1] = xmed
+        sr, sc = si
+        yi, xi = np.where(masks[sr, sc] == (i + 1))
+        ymed = np.median(yi)
+        xmed = np.median(xi)
+        imin = np.argmin((xi - xmed) ** 2 + (yi - ymed) ** 2)
+        xmed = xi[imin]
+        ymed = yi[imin]
+        centers[i, 0] = ymed + sr.start
+        centers[i, 1] = xmed + sc.start
 
     centers += 1  # add padding
 
@@ -174,9 +175,8 @@ def masks_to_flows_cpu(masks):
     # get mask centers
     regions = measure.regionprops(measure.label(masks))
     slices = [region.slice for region in regions]
-    centers = np.rint([region.centroid for region in regions]).astype(int)
 
-    for i, (si, center) in enumerate(zip(slices, centers)):
+    for i, si in enumerate(slices):
 
         sr, sc = si
         ly, lx = sr.stop - sr.start + 1, sc.stop - sc.start + 1
@@ -184,15 +184,11 @@ def masks_to_flows_cpu(masks):
         y = y.astype(np.int32) + 1
         x = x.astype(np.int32) + 1
 
-        if masks[center[0], center[1]] != i + 1:
-            ymed = np.median(y)
-            xmed = np.median(x)
-            imin = np.argmin((x - xmed) ** 2 + (y - ymed) ** 2)
-            xmed = x[imin]
-            ymed = y[imin]
-        else:
-            xmed = center[1] - sc.start + 1
-            ymed = center[0] - sr.start + 1
+        ymed = np.median(y)
+        xmed = np.median(x)
+        imin = np.argmin((x - xmed) ** 2 + (y - ymed) ** 2)
+        xmed = x[imin]
+        ymed = y[imin]
 
         niter = 2 * np.int32(np.ptp(x) + np.ptp(y))
         T = np.zeros((ly + 2) * (lx + 2), np.float64)
