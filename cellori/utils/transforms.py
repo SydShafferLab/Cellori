@@ -1,10 +1,86 @@
+import cv2 as cv
 import numpy as np
 
+from functools import partial
+from jax import random
 from scipy import ndimage
 from skimage import filters
 from skimage import measure
 from skimage import morphology
 from skimage import segmentation
+
+
+class RandomAffine:
+
+    def __init__(self):
+
+        self.flip0 = []
+        self.flip1 = []
+        self.scale = []
+        self.dxy = []
+        self.theta = []
+        self.affine_transforms = []
+
+    def generate_transforms(self, images, key, base_scales, output_shape):
+
+        for image, base_scale in zip(images, base_scales):
+
+            # Random flip
+            key, *subkeys = random.split(key, 3)
+            flip0 = random.uniform(subkeys[0]) > 0.5
+            self.flip0.append(flip0)
+            flip1 = random.uniform(subkeys[1]) > 0.5
+            self.flip1.append(flip1)
+
+            # Random scaling
+            key, subkey = random.split(key)
+            scale = base_scale * (1 + (random.uniform(subkey) - 0.5) / 2)
+            self.scale.append(scale)
+
+            # Random translation
+            key, subkey = random.split(key)
+            dxy = np.maximum(0, np.array([image.shape[1] * scale - output_shape[1],
+                                          image.shape[0] * scale - output_shape[0]]))
+            dxy = (random.uniform(subkey, (2,)) - 0.5) * dxy
+            self.dxy.append(dxy)
+
+            # Random rotation
+            key, subkey = random.split(key)
+            theta = random.uniform(subkey) * 2 * np.pi
+            self.theta.append(theta)
+
+            # Construct affine transformation
+            image_center = (image.shape[1] / 2, image.shape[0] / 2)
+            affine = cv.getRotationMatrix2D(image_center, float(theta * 180 / np.pi), float(scale))
+            affine[:, 2] += np.array(output_shape) / 2 - np.array(image_center) + dxy
+            self.affine_transforms.append(partial(cv.warpAffine, M=affine, dsize=output_shape))
+
+    def apply_transforms(self, images, interpolation='nearest'):
+
+        transformed_images = []
+
+        for image, flip0, flip1, affine_transform in zip(images, self.flip0, self.flip1, self.affine_transforms):
+
+            # Apply affine transformation
+            if interpolation == 'nearest':
+                transformed_image = affine_transform(image, flags=cv.INTER_NEAREST)
+            elif interpolation == 'bilinear':
+                transformed_image = affine_transform(image, flags=cv.INTER_LINEAR)
+
+            # Random flip
+            if flip0:
+                transformed_image = np.flip(transformed_image, axis=0)
+            if flip1:
+                transformed_image = np.flip(transformed_image, axis=1)
+
+            transformed_images.append(transformed_image)
+
+        return transformed_images
+
+
+def normalize(image, epsilon=1e-7):
+
+    return (image - np.min(image)) / (np.ptp(image) + epsilon)
 
 
 def class_transform(mask, dilation_radius=None, separate_edge_classes=False):

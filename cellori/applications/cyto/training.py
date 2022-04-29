@@ -8,7 +8,7 @@ from dataclasses import replace
 from flax.training import train_state
 from typing import Any
 
-from cellori.applications.cyto.data import generate_dataset
+from cellori.applications.cyto.data import transform_dataset
 from cellori.applications.cyto.model import CelloriCytoModel
 from cellori.utils.losses import binary_cross_entropy_loss, mean_squared_error
 
@@ -69,12 +69,12 @@ def train_step(state, batch):
     return state, metrics
 
 
-def train_epoch(state, train, batch_size, epoch):
+def train_epoch(state, train_ds, batch_size, epoch):
     """Train for a single epoch."""
 
     rng, *subrngs = jax.random.split(state.rng, 3)
     state = replace(state, rng=rng)
-    train_ds = generate_dataset(*train, subrngs[0])
+    train_ds = transform_dataset(train_ds, subrngs[0])
 
     train_ds_size = len(train_ds['image'])
     steps_per_epoch = train_ds_size // batch_size

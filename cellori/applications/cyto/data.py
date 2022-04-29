@@ -1,20 +1,19 @@
-import cv2 as cv
 import glob
 import numpy as np
 import os
 
 from imageio import imread
-from jax import random
 from skimage import measure
 
-from cellori.utils import dynamics
+from cellori.utils.dynamics import masks_to_flows
+from cellori.utils.transforms import normalize, RandomAffine
 
-def load_dataset(train, test):
+def load_dataset(train, test, use_gpu=True):
 
     def load_folder(folder):
 
-        X = []
-        y = []
+        images = []
+        masks = []
 
         image_files = sorted(glob.glob(os.path.join(folder, '*img.png')))
         mask_files = sorted(glob.glob(os.path.join(folder, '*masks.png')))
@@ -24,72 +23,77 @@ def load_dataset(train, test):
             image = imread(image_file)[:, :, :2]
             mask = imread(mask_file)
 
-            X.append(image)
-            y.append(mask)
+            images.append(image)
+            masks.append(mask)
 
-        return X, y
+        return images, masks
 
-    X_train, y_train = load_folder(train)
-    X_test, y_test = load_folder(test)
+    images_train, masks_train = load_folder(train)
+    images_test, masks_test = load_folder(test)
 
-    return X_train, y_train, X_test, y_test
+    gradients_train = [np.moveaxis(masks_to_flows(mask, use_gpu=use_gpu), 0, -1) for mask in masks_train]
+    gradients_test = [np.moveaxis(masks_to_flows(mask, use_gpu=use_gpu), 0, -1) for mask in masks_test]
 
-
-def generate_dataset(X, y, key, resize_diameter=30, output_shape=(256, 256)):
-
-    dataset = {
-        'image': [],
-        'gradients': [],
-        'semantic': []
+    train_ds = {
+        'image': images_train,
+        'mask': masks_train,
+        'gradients': gradients_train
     }
 
-    for image, mask in zip(X, y):
+    test_ds = {
+        'image': images_test,
+        'mask': masks_test,
+        'gradients': gradients_test
+    }
 
-        # Find median diameter
-        diameter = np.median([region.equivalent_diameter_area for region in measure.regionprops(mask)])
+    return train_ds, test_ds
 
-        # Random flip
-        key, subkey = random.split(key)
-        if random.uniform(subkey) > 0.5:
-            image = np.flip(image, axis=0)
-            mask = np.flip(mask, axis=0)
-        key, subkey = random.split(key)
-        if random.uniform(subkey) > 0.5:
-            image = np.flip(image, axis=1)
-            mask = np.flip(mask, axis=1)
 
-        # Random scaling
-        key, subkey = random.split(key)
-        scale = 1 + (random.uniform(subkey) - 0.5) / 2
-        scale = (resize_diameter / diameter) * scale
+def transform_dataset(ds, key, resize_diameter=30, output_shape=(256, 256)):
 
-        # Random translation
-        key, subkey = random.split(key)
-        dxy = np.maximum(0, np.array([mask.shape[1] * scale - output_shape[1],
-                                      mask.shape[0] * scale - output_shape[0]]))
-        dxy = (random.uniform(subkey, (2, )) - 0.5) * dxy
+    # Find median diameters
+    diameters = [
+        np.median([
+            region.equivalent_diameter_area for region in measure.regionprops(mask)
+        ]) for mask in ds['mask']
+    ]
+    base_scales = resize_diameter / np.array(diameters)
 
-        # Random rotation
-        key, subkey = random.split(key)
-        theta = random.uniform(subkey) * 360
+    # Create transformer
+    transformer = RandomAffine()
+    transformer.generate_transforms(ds['image'], key, base_scales, output_shape)
 
-        # Construct affine transformation
-        image_center = (mask.shape[1] / 2, mask.shape[0] / 2)
-        affine = cv.getRotationMatrix2D(image_center, float(theta), float(scale))
-        affine[:, 2] += np.array(output_shape) / 2 - np.array(image_center) + dxy
+    # Apply transformations
+    images = transformer.apply_transforms(ds['image'], interpolation='bilinear')
+    masks = transformer.apply_transforms(ds['mask'], interpolation='nearest')
+    gradients = transformer.apply_transforms(ds['gradients'], interpolation='bilinear')
 
-        # Apply affine transformation
-        image = cv.warpAffine(image, affine, dsize=output_shape, flags=cv.INTER_LINEAR)
-        image = (image - np.min(image)) / (np.ptp(image) + 1e-7)
-        mask = cv.warpAffine(mask, affine, dsize=output_shape, flags=cv.INTER_NEAREST)
-        gradients = np.moveaxis(dynamics.masks_to_flows(mask), 0, 2)
+    # Normalize images
+    images = [normalize(image) for image in images]
 
-        dataset['image'].append(image)
-        dataset['gradients'].append(gradients)
-        dataset['semantic'].append(mask > 0)
+    # Transform flow values
+    for i, g in enumerate(gradients):
 
-    dataset['image'] = np.array(dataset['image'])
-    dataset['gradients'] = np.array(dataset['gradients'])
-    dataset['semantic'] = np.array(dataset['semantic'])[:, :, :, None]
+        theta = transformer.theta[i]
+        flip0 = transformer.flip0[i]
+        flip1 = transformer.flip1[i]
 
-    return dataset
+        g = (np.array([[[
+            [np.cos(theta), -np.sin(theta)],
+            [np.sin(theta), np.cos(theta)]
+        ]]]) @ g[:, :, :, None])[:, :, :, 0]
+
+        if flip0:
+            g[:, :, 0] *= -1
+        if flip1:
+            g[:, :, 1] *= -1
+
+        gradients[i] = g
+
+    transformed_ds = {
+        'image': np.array(images),
+        'gradients': np.array(gradients),
+        'semantic': np.array([mask > 0 for mask in masks])[:, :, :, None]
+    }
+
+    return transformed_ds
