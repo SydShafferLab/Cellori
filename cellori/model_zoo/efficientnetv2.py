@@ -94,6 +94,7 @@ class EfficientNetV2(CaptureModule):
                     norm=norm,
                     act=self.act,
                     dropout_rate=self.drop_connect_rate * b / blocks,
+                    deterministic=not train,
                     **args,
                 )(x)
                 b += 1

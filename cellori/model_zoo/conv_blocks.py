@@ -15,6 +15,7 @@ class MBConvBlock(nn.Module):
     strides: Tuple[int, int] = (1, 1)
     se_ratio: float = 0.0
     dropout_rate: float = 0.2
+    deterministic: bool = False
     name: str = None
 
     @nn.compact
@@ -81,7 +82,7 @@ class MBConvBlock(nn.Module):
             if self.dropout_rate > 0:
                 x = nn.Dropout(
                     rate=self.dropout_rate,
-                    deterministic=True,
+                    deterministic=self.deterministic,
                     name=self.name + 'drop'
                 )(x)
             x = x + residual
@@ -100,6 +101,7 @@ class FusedMBConvBlock(nn.Module):
     strides: Tuple[int, int] = (1, 1)
     se_ratio: float = 0.0
     dropout_rate: float = 0.2
+    deterministic: bool = False
     name: str = None
 
     @nn.compact
@@ -158,7 +160,7 @@ class FusedMBConvBlock(nn.Module):
             if self.dropout_rate > 0:
                 x = nn.Dropout(
                     rate=self.dropout_rate,
-                    deterministic=True,
+                    deterministic=self.deterministic,
                     name=self.name + 'drop'
                 )(x)
             x = x + residual
