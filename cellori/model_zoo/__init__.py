@@ -17,10 +17,15 @@ from .efficientnetv2 import (
     EfficientNetV2B1,
     EfficientNetV2B2,
     EfficientNetV2B3,
-    EfficientNetV2XS,
     EfficientNetV2S,
     EfficientNetV2M,
     EfficientNetV2L
+)
+
+from .originnet import (
+    OriginNetS,
+    OriginNetM,
+    OriginNetL
 )
 
 from .resnet import (
