@@ -7,11 +7,12 @@ from skimage import measure
 from skimage import segmentation
 from skimage import transform
 
-from cellori.utils import dynamics
+from cellori.utils import dynamics, metrics
 
 
 def compute_masks_dynamics(dP, cellprob, p=None, niter=200,
-                           cellprob_threshold=0.5, interp=True,
+                           flow_threshold=0.4, cellprob_threshold=0.5,
+                           interp=True, do_3D=False,
                            min_size=15, resize=None,
                            use_gpu=False, device=None):
     """ compute masks using dynamics from dP, cellprob, and boundary """
@@ -34,11 +35,11 @@ def compute_masks_dynamics(dP, cellprob, p=None, niter=200,
         mask = _compute_masks_dynamics(p, iscell=cp_mask)
 
         # flow thresholding factored out of get_masks
-        # if not do_3D:
-        #     # shape0 = p.shape[1:]
-        #     if mask.max() > 0 and flow_threshold is not None and flow_threshold > 0:
-        #         # make sure labels are unique at output of get_masks
-        #         mask = remove_bad_flow_masks(mask, dP, threshold=flow_threshold, use_gpu=use_gpu, device=device)
+        if not do_3D:
+            # shape0 = p.shape[1:]
+            if mask.max() > 0 and flow_threshold is not None and flow_threshold > 0:
+                # make sure labels are unique at output of get_masks
+                mask = _remove_bad_flow_masks(mask, dP, threshold=flow_threshold, use_gpu=use_gpu)
 
         if resize is not None:
             # if verbose:
@@ -188,6 +189,35 @@ def _compute_masks_dynamics(p, iscell=None, rpad=20):
     # fastremap.renumber(M0, in_place=True)  # convenient to guarantee non-skipped labels
     M0 = np.reshape(M0, shape0)
     return M0
+
+
+def _remove_bad_flow_masks(masks, flows, threshold=0.4, use_gpu=False):
+    """ remove masks which have inconsistent flows
+
+    Uses metrics.flow_error to compute flows from predicted masks
+    and compare flows to predicted flows from network. Discards
+    masks with flow errors greater than the threshold.
+    Parameters
+    ----------------
+    masks: int, 2D or 3D array
+        labelled masks, 0=NO masks; 1,2,...=mask labels,
+        size [Ly x Lx] or [Lz x Ly x Lx]
+    flows: float, 3D or 4D array
+        flows [axis x Ly x Lx] or [axis x Lz x Ly x Lx]
+    threshold: float (optional, default 0.4)
+        masks with flow error greater than threshold are discarded.
+    Returns
+    ---------------
+    masks: int, 2D or 3D array
+        masks with inconsistent flow masks removed,
+        0=NO masks; 1,2,...=mask labels,
+        size [Ly x Lx] or [Lz x Ly x Lx]
+
+    """
+    merrors, _ = metrics.flow_error(masks, flows, use_gpu)
+    badi = 1 + (merrors > threshold).nonzero()[0]
+    masks[np.isin(masks, badi)] = 0
+    return masks
 
 
 def _clean_mask(mask, min_size):
