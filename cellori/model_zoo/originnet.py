@@ -77,17 +77,3 @@ OriginNetS = build_originnet(
     depth_coefficient=1.0,
     default_size=256
 )
-
-OriginNetM = build_originnet(
-    model_name="originnet-m",
-    width_coefficient=1.0,
-    depth_coefficient=1.0,
-    default_size=256
-)
-
-OriginNetL = build_originnet(
-    model_name="originnet-l",
-    width_coefficient=1.0,
-    depth_coefficient=1.0,
-    default_size=256
-)

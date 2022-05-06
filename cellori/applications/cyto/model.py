@@ -2,13 +2,13 @@ from functools import partial
 from flax import linen as nn
 
 from cellori.model_zoo import FPN
-from cellori.model_zoo import OriginNetM
+from cellori.model_zoo import OriginNetS
 from cellori.model_zoo import PolyNet
 
 OriginFPN = partial(
     FPN,
-    backbone=OriginNetM,
-    backbone_levels={'C1', 'C2', 'C3', 'C4', 'C5'},
+    backbone=OriginNetS,
+    backbone_levels={'C1', 'C2', 'C3', 'C4'},
     backbone_args={'stem_strides': 1},
     add_styles=True,
     upsample='interpolate',

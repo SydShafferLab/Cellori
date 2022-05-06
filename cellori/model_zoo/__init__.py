@@ -23,9 +23,7 @@ from .efficientnetv2 import (
 )
 
 from .originnet import (
-    OriginNetS,
-    OriginNetM,
-    OriginNetL
+    OriginNetS
 )
 
 from .resnet import (

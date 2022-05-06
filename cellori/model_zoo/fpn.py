@@ -13,6 +13,8 @@ class FPNBlock(nn.Module):
     conv: ModuleDef = nn.Conv
     convt: ModuleDef = nn.ConvTranspose
     dense: ModuleDef = nn.Dense
+    norm: ModuleDef = nn.BatchNorm
+    act: Callable = nn.swish
     upsample: str = 'interpolate'
     name: str = None
 
@@ -23,6 +25,11 @@ class FPNBlock(nn.Module):
         if self.upsample == 'interpolate':
             shape = (x.shape[0], 2 * x.shape[1], 2 * x.shape[2], x.shape[3])
             x = image.resize(x, shape=shape, method='nearest')
+            x = self.conv(
+                features=x.shape[-1],
+                kernel_size=(3, 3),
+                name=self.name + 'upsample_conv'
+            )(x)
         elif self.upsample == 'conv':
             x = self.convt(
                 features=x.shape[-1],
@@ -31,6 +38,10 @@ class FPNBlock(nn.Module):
                 padding='SAME',
                 name=self.name + 'upsample_convt'
             )(x)
+        x = self.norm(
+            name=self.name + 'upsample_bn'
+        )(x)
+        x = self.act(x)
 
         # 1x1 convolution on skip connection
         skip = self.conv(
@@ -106,6 +117,8 @@ class FPN(nn.Module):
         for backbone_level in backbone_levels:
             f = FPNBlock(
                 conv=conv,
+                norm=norm,
+                act=self.act,
                 upsample=self.upsample,
                 name='P{}_'.format(backbone_level[1:])
             )(f, outputs[backbone_level][0], styles)
