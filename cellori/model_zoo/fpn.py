@@ -9,6 +9,36 @@ from typing import Any, Callable, Tuple
 ModuleDef = Any
 
 
+class UpConvBlock(nn.Module):
+
+    conv: ModuleDef = nn.Conv
+    convt: ModuleDef = nn.ConvTranspose
+    upsample: str = 'interpolate'
+    name: str = None
+
+    @nn.compact
+    def __call__(self, x):
+
+        if self.upsample == 'interpolate':
+            shape = (x.shape[0], 2 * x.shape[1], 2 * x.shape[2], x.shape[3])
+            x = image.resize(x, shape=shape, method='nearest')
+            x = self.conv(
+                features=x.shape[-1],
+                kernel_size=(3, 3),
+                name='upsample_conv'
+            )(x)
+        elif self.upsample == 'conv':
+            x = self.convt(
+                features=x.shape[-1],
+                kernel_size=(3, 3),
+                strides=(2, 2),
+                padding='SAME',
+                name='upsample_convt'
+            )(x)
+
+        return x
+
+
 class FPNBlock(nn.Module):
     conv: ModuleDef = nn.Conv
     convt: ModuleDef = nn.ConvTranspose
@@ -22,26 +52,11 @@ class FPNBlock(nn.Module):
     def __call__(self, x, skip, styles):
 
         # Upsample pyramid level
-        if self.upsample == 'interpolate':
-            shape = (x.shape[0], 2 * x.shape[1], 2 * x.shape[2], x.shape[3])
-            x = image.resize(x, shape=shape, method='nearest')
-            x = self.conv(
-                features=x.shape[-1],
-                kernel_size=(3, 3),
-                name=self.name + 'upsample_conv'
-            )(x)
-        elif self.upsample == 'conv':
-            x = self.convt(
-                features=x.shape[-1],
-                kernel_size=(3, 3),
-                strides=(2, 2),
-                padding='SAME',
-                name=self.name + 'upsample_convt'
-            )(x)
-        x = self.norm(
-            name=self.name + 'upsample_bn'
+        x = UpConvBlock(
+            conv=self.conv,
+            upsample=self.upsample,
+            name='pyramid_upsample'
         )(x)
-        x = self.act(x)
 
         # 1x1 convolution on skip connection
         skip = self.conv(
@@ -49,7 +64,7 @@ class FPNBlock(nn.Module):
             kernel_size=(1, 1),
             strides=1,
             padding='SAME',
-            name=self.name + 'skip_conv'
+            name='skip_conv'
         )(skip)
 
         x = x + skip
@@ -57,7 +72,7 @@ class FPNBlock(nn.Module):
         if styles is not None:
             bias = self.dense(
                 features=x.shape[-1],
-                name=self.name + 'styles_dense'
+                name='styles_dense'
             )(styles)[:, None, None, :]
             x = x + bias
 
@@ -95,7 +110,8 @@ class FPN(nn.Module):
         # Get backbone outputs
         _, outputs = self.backbone(**self.backbone_args)(x, train=train, capture_list=self.backbone_levels)
         backbone_levels = sorted(outputs.keys(), reverse=True)
-        final_output = outputs[backbone_levels.pop(0)][0]
+        final_output = outputs[backbone_levels[0]][0]
+        bottom_shape = outputs[backbone_levels[-1]][0].shape
 
         if self.add_styles:
             styles = np.sum(final_output, axis=(1, 2))
@@ -108,27 +124,30 @@ class FPN(nn.Module):
 
         # 1x1 convolution on final backbone output
         f = conv(
-            features=final_output.shape[-1],
+            features=bottom_shape[-1],
             name='output_conv'
         )(final_output)
         features.append(f)
 
         # Run FPNBlock for remaining pyramid levels
-        for backbone_level in backbone_levels:
+        for backbone_level in backbone_levels[1:]:
             f = FPNBlock(
                 conv=conv,
                 norm=norm,
                 act=self.act,
                 upsample=self.upsample,
-                name='P{}_'.format(backbone_level[1:])
+                name='P{}_block'.format(backbone_level[1:])
             )(f, outputs[backbone_level][0], styles)
             features.append(f)
 
-        bottom_shape = features[-1].shape
-
         # Resize feature maps
         for i in range(len(features[:-1])):
-            features[i] = image.resize(features[i], shape=bottom_shape, method='nearest')
+            for j in range(len(features) - i - 1):
+                features[i] = UpConvBlock(
+                    conv=self.conv,
+                    upsample=self.upsample,
+                    name='P{}_upsample{}'.format(backbone_levels[i][1:], j + 1)
+                )(features[i])
 
         # 3x3 convolution on each feature map
         for i in range(len(features)):
