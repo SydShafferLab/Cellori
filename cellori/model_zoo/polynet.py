@@ -11,7 +11,6 @@ class PolyHead(nn.Module):
     norm: ModuleDef = nn.BatchNorm
     act_dense: Callable = nn.swish
     act_final: Callable = nn.softmax
-    num_dense: int = 128
     num_classes: int = 3
     name: str = None
 
@@ -19,17 +18,17 @@ class PolyHead(nn.Module):
     def __call__(self, x):
 
         x = self.conv(
-            features=self.num_dense,
-            name=self.name + 'dense_conv'
+            features=x.shape[-1],
+            name='dense_conv'
         )(x)
         x = self.norm(
-            name=self.name + 'dense_bn'
+            name='dense_bn'
         )(x)
         x = self.act_dense(x)
 
         x = self.conv(
             features=self.num_classes,
-            name=self.name + 'final_conv'
+            name='final_conv'
         )(x)
         if self.act_final is not None:
             x = self.act_final(x)
@@ -42,7 +41,7 @@ class PolyNet(nn.Module):
     fpn: ModuleDef
     conv: ModuleDef = nn.Conv
     norm: ModuleDef = nn.BatchNorm
-    semantic_heads: Tuple[Tuple[int, ModuleDef]] = ((1, nn.sigmoid), (3, nn.softmax))
+    semantic_heads: Tuple[Tuple[int, ModuleDef]] = ((2, None), (1, nn.sigmoid))
 
     @nn.compact
     def __call__(self, x, train: bool = True):
@@ -65,14 +64,14 @@ class PolyNet(nn.Module):
         # Create list to store feature maps
         poly_features = []
 
-        # Process aggregate feature map through semantic heads
+        # Process aggregate feature map through poly heads
         for i, (num_classes, act_final) in enumerate(self.semantic_heads):
             f = PolyHead(
                 conv=conv,
                 norm=norm,
                 act_final=act_final,
                 num_classes=num_classes,
-                name='semantic{}_'.format(i + 1)
+                name='poly{}_head'.format(i + 1)
             )(agg_features)
             poly_features.append(f)
 

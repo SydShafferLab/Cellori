@@ -29,10 +29,10 @@ DEFAULT_BLOCKS_ARGS = {
             "strides": 2,
         }, {
             "conv_type": 0,
-            "expand_ratio": 4,
+            "expand_ratio": 6,
             "input_filters": 128,
             "kernel_size": (3, 3),
-            "num_repeat": 4,
+            "num_repeat": 8,
             "output_filters": 256,
             "se_ratio": 0.25,
             "strides": 2,

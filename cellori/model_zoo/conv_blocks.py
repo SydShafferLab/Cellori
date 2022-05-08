@@ -27,10 +27,10 @@ class MBConvBlock(nn.Module):
         if self.expand_ratio != 1:
             x = self.conv(
                 features=filters,
-                name=self.name + "expand_conv",
+                name="expand_conv",
             )(x)
             x = self.norm(
-                name=self.name + "expand_bn"
+                name="expand_bn"
             )(x)
             x = self.act(x)
 
@@ -40,10 +40,10 @@ class MBConvBlock(nn.Module):
             kernel_size=self.kernel_size,
             strides=self.strides,
             feature_group_count=x.shape[-1],
-            name=self.name + 'dwconv'
+            name='dwconv'
         )(x)
         x = self.norm(
-            name=self.name + "bn"
+            name="bn"
         )(x)
         x = self.act(x)
 
@@ -56,13 +56,13 @@ class MBConvBlock(nn.Module):
                 features=filters_se,
                 padding='SAME',
                 use_bias=True,
-                name=self.name + 'se_reduce'
+                name='se_reduce'
             )(se)
             se = self.act(se)
             se = self.conv(
                 features=filters,
                 use_bias=True,
-                name=self.name + 'se_expand'
+                name='se_expand'
             )(se)
             se = nn.sigmoid(se)
 
@@ -71,10 +71,10 @@ class MBConvBlock(nn.Module):
         # Output phase
         x = self.conv(
             features=self.output_filters,
-            name=self.name + 'project_conv'
+            name='project_conv'
         )(x)
         x = self.norm(
-            name=self.name + "project_bn"
+            name="project_bn"
         )(x)
 
         # Residual
@@ -83,7 +83,7 @@ class MBConvBlock(nn.Module):
                 x = nn.Dropout(
                     rate=self.dropout_rate,
                     deterministic=self.deterministic,
-                    name=self.name + 'drop'
+                    name='drop'
                 )(x)
             x = x + residual
 
@@ -115,10 +115,10 @@ class FusedMBConvBlock(nn.Module):
                 features=filters,
                 kernel_size=self.kernel_size,
                 strides=self.strides,
-                name=self.name + "expand_conv",
+                name="expand_conv",
             )(x)
             x = self.norm(
-                name=self.name + "expand_bn"
+                name="expand_bn"
             )(x)
             x = self.act(x)
 
@@ -130,13 +130,13 @@ class FusedMBConvBlock(nn.Module):
             se = self.conv(
                 features=filters_se,
                 use_bias=True,
-                name=self.name + 'se_reduce'
+                name='se_reduce'
             )(se)
             se = self.act(se)
             se = self.conv(
                 features=filters,
                 use_bias=True,
-                name=self.name + 'se_expand'
+                name='se_expand'
             )(se)
             se = nn.sigmoid(se)
 
@@ -147,10 +147,10 @@ class FusedMBConvBlock(nn.Module):
             features=self.output_filters,
             kernel_size=(1, 1) if self.expand_ratio != 1 else self.kernel_size,
             strides=1 if self.expand_ratio != 1 else self.strides,
-            name=self.name + 'project_conv'
+            name='project_conv'
         )(x)
         x = self.norm(
-            name=self.name + "project_bn"
+            name="project_bn"
         )(x)
         if self.expand_ratio == 1:
             x = self.act(x)
@@ -161,7 +161,7 @@ class FusedMBConvBlock(nn.Module):
                 x = nn.Dropout(
                     rate=self.dropout_rate,
                     deterministic=self.deterministic,
-                    name=self.name + 'drop'
+                    name='drop'
                 )(x)
             x = x + residual
 
