@@ -214,7 +214,8 @@ def _remove_bad_flow_masks(masks, flows, threshold=0.4, use_gpu=False):
         size [Ly x Lx] or [Lz x Ly x Lx]
 
     """
-    merrors, _ = metrics.flow_error(masks, flows, use_gpu)
+    masks_cleared = segmentation.clear_border(masks)
+    merrors, _ = metrics.flow_error(masks_cleared, flows, use_gpu)
     badi = 1 + (merrors > threshold).nonzero()[0]
     masks[np.isin(masks, badi)] = 0
     return masks
