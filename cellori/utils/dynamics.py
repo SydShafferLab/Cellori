@@ -111,7 +111,7 @@ def masks_to_flows_gpu(masks):
     neighbors = np.stack((neighborsY, neighborsX), axis=-1)
 
     # get mask centers
-    regions = measure.regionprops(measure.label(masks))
+    regions = measure.regionprops(masks)
     slices = [region.slice for region in regions]
     centers = np.zeros((masks.max(), 2), 'int')
 
@@ -173,7 +173,7 @@ def masks_to_flows_cpu(masks):
     mu = np.zeros((2, Ly, Lx), np.float64)
 
     # get mask centers
-    regions = measure.regionprops(measure.label(masks))
+    regions = measure.regionprops(masks)
     slices = [region.slice for region in regions]
 
     for i, si in enumerate(slices):
