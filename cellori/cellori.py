@@ -62,6 +62,13 @@ class Cellori:
 
     def predict(self, x, diameter=30, cellprob_threshold=0.5, flow_threshold=0.5):
 
+        if x.ndim == 4:
+            batch_axis = 0
+        elif x.ndim == 3:
+            batch_axis = None
+        else:
+            raise ValueError("Input does not have the correct dimensions.")
+
         if diameter != 30:
             tile_size = tuple(onp.rint(onp.array([252, 252]) * (diameter / 30)).astype(int))
         else:
@@ -71,11 +78,12 @@ class Cellori:
         dt.configure(tile_size=tile_size, overlap=(0.25, 0.25))
 
         tiles = dt.get_tiles()
-        tiles = dt.process(tiles, transform(self.process, batch=True), batch_size=self.batch_size)
+        tiles = dt.process(tiles, transform(self.process, vectorized=True),
+                           batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
         tiles = dt.process(tiles, transform(partial(self.postprocess, tile_size=tile_size,
                                                     cellprob_threshold=cellprob_threshold,
-                                                    flow_threshold=flow_threshold), batch=False),
-                           batch_size=self.batch_size)
+                                                    flow_threshold=flow_threshold), vectorized=False),
+                           batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=False)
 
         mask = dt.stitch(tiles, stitch.stitch_masks())
 
