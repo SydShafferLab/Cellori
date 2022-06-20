@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
-VERSION = "3.7"
+VERSION = "4.0"
 DESCRIPTION = "Cellori"
-LONG_DESCRIPTION = "A fast and robust algorithm for clustered nuclei segmentation."
+LONG_DESCRIPTION = "A fast and robust algorithm for whole-cell segmentation."
 
 setup(
     name="cellori",
@@ -13,12 +13,10 @@ setup(
     long_description_content_type="text/markdown",
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),
-    install_requires=['dask', 'numba', 'numpy', 'opencv-python', 'scikit-image', 'scipy', 'simpleitk', 'stitchwell',
-                      'tifffile'],
-    extras_require={
-        'gui': ['matplotlib', 'pyside6']
-    },
-    keywords=["nuclei", "segmentation"],
+    install_requires=['fastremap', 'flax', 'imageio', 'numba', 'numpy', 'opencv-python', 'scikit-image', 'scipy',
+                      'tifffile', 'torch', 'tqdm'],
+    include_package_data=True,
+    keywords=["segmentation"],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
