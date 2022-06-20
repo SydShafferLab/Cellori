@@ -42,6 +42,7 @@ class PolyNet(nn.Module):
     conv: ModuleDef = nn.Conv
     norm: ModuleDef = nn.BatchNorm
     semantic_heads: Tuple[Tuple[int, ModuleDef]] = ((2, None), (1, nn.sigmoid))
+    return_agg: bool = False
 
     @nn.compact
     def __call__(self, x, train: bool = True):
@@ -74,5 +75,8 @@ class PolyNet(nn.Module):
                 name='poly{}_head'.format(i + 1)
             )(agg_features)
             poly_features.append(f)
+
+        if self.return_agg:
+            poly_features.append(agg_features)
 
         return poly_features

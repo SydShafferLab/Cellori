@@ -6,7 +6,7 @@ from imageio import imread
 from skimage import measure
 
 from cellori.utils.dynamics import masks_to_flows
-from cellori.utils.transforms import normalize, RandomAffine
+from cellori.utils.transforms import normalize, RandomAugment
 
 
 def load_dataset(folder, calculate_gradients=True, use_gpu=True):
@@ -50,13 +50,13 @@ def transform_dataset(ds, key, resize_diameter=30, output_shape=(256, 256)):
     base_scales = resize_diameter / np.array(diameters)
 
     # Create transformer
-    transformer = RandomAffine()
+    transformer = RandomAugment()
     transformer.generate_transforms(ds['image'], key, base_scales, output_shape)
 
     # Apply transformations
-    images = transformer.apply_transforms(ds['image'], interpolation='bilinear')
-    masks = transformer.apply_transforms(ds['mask'], interpolation='nearest')
-    gradients = transformer.apply_transforms(ds['gradients'], interpolation='bilinear')
+    images = transformer.apply_image_transforms(ds['image'], interpolation='bilinear')
+    masks = transformer.apply_image_transforms(ds['mask'], interpolation='nearest')
+    gradients = transformer.apply_image_transforms(ds['gradients'], interpolation='bilinear')
 
     # Normalize images
     images = [normalize(image) for image in images]
