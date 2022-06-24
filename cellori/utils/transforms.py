@@ -114,20 +114,37 @@ class RandomAugment:
         return transformed_images
 
 
-def normalize(image, epsilon=1e-7):
+def normalize(image, lower=0, upper=100, epsilon=1e-7):
 
-    return (image - onp.min(image)) / (onp.ptp(image) + epsilon)
+    image_lower = onp.percentile(image, lower)
+    image_upper = onp.percentile(image, upper)
+
+    return (image - image_lower) / onp.maximum(image_upper - image_lower, epsilon)
 
 
-def batch_normalize(images, epsilon=1e-7):
+def batch_normalize(images, lower=0, upper=100, epsilon=1e-7):
 
-    return vmap(_normalize, in_axes=(0, None))(images, epsilon)
+    return vmap(_normalize, in_axes=(0, None, None, None))(images, lower, upper, epsilon)
 
 
 @jit
-def _normalize(image, epsilon):
+def _normalize(image, lower, upper, epsilon):
 
-    return (image - np.min(image)) / (np.ptp(image) + epsilon)
+    image_lower = np.percentile(image, lower)
+    image_upper = np.percentile(image, upper)
+
+    return (image - image_lower) / np.maximum(image_upper - image_lower, epsilon)
+
+
+def batch_standardize(images, epsilon=1e-7):
+
+    return vmap(_standardize, in_axes=(0, None))(images, epsilon)
+
+
+@jit
+def _standardize(image, epsilon):
+
+    return (image - np.mean(image)) / np.maximum(np.std(image), epsilon)
 
 
 def class_transform(mask, dilation_radius=None, separate_edge_classes=False):

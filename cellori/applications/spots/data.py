@@ -3,10 +3,10 @@ import numpy as np
 from pathlib import Path
 from scipy import ndimage
 
-from cellori.utils.transforms import batch_normalize, RandomAugment, subpixel_distance_transform
+from cellori.utils.transforms import batch_normalize, batch_standardize, RandomAugment, subpixel_distance_transform
 
 
-def load_datasets(path, normalize_images=True):
+def load_datasets(path, adjustment='normalize'):
 
     train = {'images': [], 'coords': []}
     valid = {'images': [], 'coords': []}
@@ -36,10 +36,14 @@ def load_datasets(path, normalize_images=True):
     test['images'] = np.concatenate(test['images'])
     test['coords'] = np.concatenate(test['coords'])
 
-    if normalize_images:
+    if adjustment == 'normalize':
         train['images'] = np.asarray(batch_normalize(train['images']))
         valid['images'] = np.asarray(batch_normalize(valid['images']))
         test['images'] = np.asarray(batch_normalize(test['images']))
+    elif adjustment == 'standardize':
+        train['images'] = np.asarray(batch_standardize(train['images']))
+        valid['images'] = np.asarray(batch_standardize(valid['images']))
+        test['images'] = np.asarray(batch_standardize(test['images']))
 
     ds = {
         'train': train,
