@@ -15,12 +15,12 @@ from cellori.applications.spots.data import transform_batch, transform_dataset
 from cellori.utils.losses import colocalization_loss
 
 
-def compute_metrics(poly_features, batch):
+def compute_metrics(poly_features, batch, loss_weights):
     deltas_pred, labels_pred = poly_features
 
     sl1l, bcel, invf1 = colocalization_loss(deltas_pred, labels_pred,
-                                           batch['deltas'], batch['labels'], batch['dilated_labels'])
-    loss = sl1l + 1000 * bcel + 5 * invf1
+                                            batch['deltas'], batch['labels'], batch['dilated_labels'])
+    loss = loss_weights['sl1l'] * sl1l + loss_weights['bcel'] * bcel + loss_weights['invf1'] * invf1
     metrics = {
         'sl1l': sl1l,
         'bcel': bcel,
@@ -51,7 +51,7 @@ def create_train_state(rng, learning_rate, variables=None):
     )
 
 
-def loss_fn(params, batch_stats, rng, batch):
+def loss_fn(params, batch_stats, rng, batch, loss_weights):
 
     if rng is None:
         poly_features = CelloriSpotsModel().apply(
@@ -64,17 +64,17 @@ def loss_fn(params, batch_stats, rng, batch):
             {'params': params, 'batch_stats': batch_stats}, batch['images'],
             train=True, mutable=['batch_stats'], rngs={'dropout': rng}
         )
-    metrics = compute_metrics(poly_features, batch)
+    metrics = compute_metrics(poly_features, batch, loss_weights)
     loss = metrics['loss']
     return loss, (metrics, mutated_vars)
 
 
-@partial(jax.jit, static_argnums=4)
-def train_step(state, train_batch, val_batch, rng, learning_rate):
+@partial(jax.jit, static_argnums=5)
+def train_step(state, train_batch, val_batch, rng, loss_weights, learning_rate):
 
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-    (_, (train_metrics, mutated_vars)), grads = grad_fn(state.params, state.batch_stats, rng, train_batch)
-    _, (val_metrics, _) = loss_fn(state.params, state.batch_stats, None, val_batch)
+    (_, (train_metrics, mutated_vars)), grads = grad_fn(state.params, state.batch_stats, rng, train_batch, loss_weights)
+    _, (val_metrics, _) = loss_fn(state.params, state.batch_stats, None, val_batch, loss_weights)
     state = state.apply_gradients(grads=grads, batch_stats=mutated_vars['batch_stats'])
     metrics = train_metrics | {f'val_{k}': v for k, v in val_metrics.items()}
     lr = learning_rate(state.step)
@@ -83,7 +83,7 @@ def train_step(state, train_batch, val_batch, rng, learning_rate):
     return state, metrics
 
 
-def train_epoch(state, train_ds, valid_ds, batch_size, epoch, learning_rate):
+def train_epoch(epoch, state, train_ds, valid_ds, batch_size, loss_weights, learning_rate):
     """Train for a single epoch."""
 
     print(f'epoch: {epoch}')
@@ -113,11 +113,11 @@ def train_epoch(state, train_ds, valid_ds, batch_size, epoch, learning_rate):
         val_batch = {k: v[val_perm, ...] for k, v in valid_ds.items()}
         train_batch = transform_batch(train_batch, 1028)
         val_batch = transform_batch(val_batch, 1028)
-        state, metrics = train_step(state, train_batch, val_batch, subrng, learning_rate)
+        state, metrics = train_step(state, train_batch, val_batch, subrng, loss_weights, learning_rate)
+        metrics = {k: float(v) for k, v in metrics.items()}
         batch_metrics.append(metrics)
 
     # compute mean of metrics across each batch in epoch.
-    batch_metrics = jax.device_get(batch_metrics)
     epoch_metrics = {
         k: onp.mean([metrics[k] for metrics in batch_metrics]).astype(float)
         for k in batch_metrics[0]}
@@ -130,4 +130,4 @@ def train_epoch(state, train_ds, valid_ds, batch_size, epoch, learning_rate):
     )
     print(summary)
 
-    return state, epoch_metrics
+    return state, batch_metrics, epoch_metrics
