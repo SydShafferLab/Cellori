@@ -197,37 +197,6 @@ class MaskMetrics:
             RegionMetrics(y_true[region.slice], region.image, region.label) for region in measure.regionprops(y_pred)
         ]
 
-    def eval(self, agg_metric, match_metric, threshold):
-
-        if agg_metric == 'AP':
-
-            matches = [
-                region_metrics for region_metrics in self._region_metrics
-                if getattr(region_metrics, match_metric)['value'] > threshold
-            ]
-            match_ids = np.unique([getattr(match, match_metric)['match'] for match in matches])
-            match_ids = match_ids[match_ids > 0]
-
-            tp = len(matches)
-            fp = np.max(self.y_pred) - tp
-            fn = np.max(self.y_true) - len(match_ids)
-
-            ap = tp / (tp + fp + fn)
-
-            return ap
-
-
-class MaskMetrics:
-
-    def __init__(self, y_true, y_pred):
-
-        self.y_true = measure.label(y_true)
-        self.y_pred = measure.label(y_pred)
-
-        self._region_metrics = [
-            RegionMetrics(y_true[region.slice], region.image, region.label) for region in measure.regionprops(y_pred)
-        ]
-
     def calculate(self, agg_metric, match_metric, threshold):
 
         if agg_metric == 'AP':
