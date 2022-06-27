@@ -15,10 +15,12 @@ def compute_spot_coordinates(deltas, labels, min_distance=1, threshold=0.5):
         counts, convergence = jit(colocalize_pixels)(deltas[i], labels[i])
         peaks = feature.peak_local_max(onp.asarray(counts + labels[i, :, :, 0] - 1),
                                        min_distance=min_distance, threshold_abs=threshold)
-
-        _, frame_coords = scan(jit(compute_subpixel_coords), (counts, convergence, peaks), np.arange(len(peaks)))
-
-        coords.append(onp.array(frame_coords))
+        num_peaks = len(peaks)
+        if num_peaks > 0:
+            _, frame_coords = scan(jit(compute_subpixel_coords), (counts, convergence, peaks), np.arange(num_peaks))
+            coords.append(onp.array(frame_coords))
+        else:
+            coords.append(onp.empty((0, 2)))
 
     return coords
 
