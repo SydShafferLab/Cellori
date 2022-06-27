@@ -64,13 +64,13 @@ class Cellori:
 
         if x.ndim == 3:
             batch_axis = None
-            x = onp.pad(x, ((0, 0), (2, 2), (2, 2)))
             x = (x - onp.min(x)) / (onp.ptp(x) + 1e-7)
+            x = onp.pad(x, ((0, 0), (2, 2), (2, 2)))
         elif x.ndim == 4:
             batch_axis = 0
-            x = onp.pad(x, ((0, 0), (0, 0), (2, 2), (2, 2)))
             x = (x - onp.min(x, axis=(1, 2, 3)).reshape((-1, 1, 1, 1))) / \
                 (onp.ptp(x, axis=(1, 2, 3)).reshape((-1, 1, 1, 1)) + 1e-7)
+            x = onp.pad(x, ((0, 0), (0, 0), (2, 2), (2, 2)))
         else:
             raise ValueError("Input does not have the correct dimensions.")
 
