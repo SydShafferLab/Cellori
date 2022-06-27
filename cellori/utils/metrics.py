@@ -87,7 +87,7 @@ class SpotsMetrics:
         match_ids = np.unique([getattr(match, match_metric)['match'] for match in matches])
         match_ids = match_ids[match_ids > 0]
 
-        tp = len(matches)
+        tp = len(match_ids)
         fp = len(self.y_pred) - tp
         fn = len(self.y_true) - len(match_ids)
 
@@ -104,6 +104,7 @@ class SpotsMetrics:
             ap = tp / (tp + fp + fn)
 
             return ap
+
 
 class PixelMetrics:
     """Calculates pixel-based statistics.
@@ -307,7 +308,7 @@ class MaskMetrics:
             match_ids = np.unique([getattr(match, match_metric)['match'] for match in matches])
             match_ids = match_ids[match_ids > 0]
 
-            tp = len(matches)
+            tp = len(match_ids)
             fp = np.max(self.y_pred) - tp
             fn = np.max(self.y_true) - len(match_ids)
 
