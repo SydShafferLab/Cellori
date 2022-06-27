@@ -1,5 +1,8 @@
 import jax.numpy as np
+
 from jax import vmap
+
+from cellori.utils.spots import colocalize_pixels
 
 
 def colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels):
@@ -12,13 +15,15 @@ def colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels
 
 def _colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels):
 
+    labels_pred = labels_pred[:, :, 0]
+    labels = labels[:, :, 0]
     dilated_labels = dilated_labels[:, :, 0]
+
     cl_sl1 = np.sum(dilated_labels * smooth_l1(deltas_pred, deltas)) / np.sum(dilated_labels)
     cl_bcel = binary_cross_entropy_loss(labels_pred, labels, weighted=True)
 
-    deltas_pred = labels_pred * deltas_pred
-    counts = count_pixel(deltas_pred)
-    counts = counts + labels_pred[:, :, 0] - 1
+    counts, _ = colocalize_pixels(deltas_pred, labels_pred[:, :, None])
+    counts = counts + labels_pred - 1
 
     tp = np.sum(dilated_labels * counts)
     fp = np.sum(labels_pred) - tp
@@ -35,24 +40,6 @@ def _colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_label
     cl_invf1 = 1 - f1
 
     return cl_sl1, cl_bcel, cl_invf1
-
-
-def count_pixel(deltas):
-
-    i, j = np.arange(deltas.shape[0]), np.arange(deltas.shape[1])
-    ii, jj = np.meshgrid(i, j, indexing='ij')
-    index_map = np.stack((ii, jj), axis=-1)
-
-    vmap_count_pixel = vmap(vmap(_count_pixel, in_axes=(None, None, 0)), in_axes=(None, 0, None))
-    counts = vmap_count_pixel(deltas + index_map, i, j)
-
-    return counts
-
-
-def _count_pixel(image, i, j):
-    local = (i - 0.5 < image[:, :, 0]) & (image[:, :, 0] < i + 0.5) \
-            & (j - 0.5 < image[:, :, 1]) & (image[:, :, 1] < j + 0.5)
-    return np.sum(local)
 
 
 def discriminative_loss(y_pred, masks, regions, delta=4, alpha=1, beta=1, gamma=0.001):
@@ -109,8 +96,9 @@ def mean_squared_error(y_pred, y_true):
 
 def smooth_l1(y_pred, y_true, beta=0.1):
 
-    l1 = np.linalg.norm(y_pred - y_true, ord=1, axis=-1)
-    l2 = np.linalg.norm(y_pred - y_true, ord=2, axis=-1)
+    diff = y_pred - y_true
+    l1 = np.linalg.norm(diff, ord=1, axis=-1)
+    l2 = np.linalg.norm(diff, ord=2, axis=-1)
     criteria = l1 < beta
 
     sl1l = 0
