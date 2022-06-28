@@ -6,21 +6,17 @@ from jax.lax import scan
 from skimage import feature
 
 
-def compute_spot_coordinates(deltas, labels, min_distance=1, threshold=0.5):
+def compute_spot_coordinates(deltas, labels, min_distance=1, threshold=0.75):
 
-    coords = []
-
-    for i in range(len(deltas)):
-
-        counts, convergence = jit(colocalize_pixels)(deltas[i], labels[i])
-        peaks = feature.peak_local_max(onp.asarray(counts + labels[i, :, :, 0] - 1),
-                                       min_distance=min_distance, threshold_abs=threshold)
-        num_peaks = len(peaks)
-        if num_peaks > 0:
-            _, frame_coords = scan(jit(compute_subpixel_coords), (counts, convergence, peaks), np.arange(num_peaks))
-            coords.append(onp.array(frame_coords))
-        else:
-            coords.append(onp.empty((0, 2)))
+    counts, convergence = jit(colocalize_pixels)(deltas, labels)
+    peaks = feature.peak_local_max(onp.asarray(counts + labels[:, :, 0] - 1),
+                                   min_distance=min_distance, threshold_abs=threshold, exclude_border=False)
+    num_peaks = len(peaks)
+    if num_peaks > 0:
+        _, coords = scan(compute_subpixel_coords, (counts, convergence, peaks), np.arange(num_peaks))
+        coords = onp.asarray(coords)
+    else:
+        coords = onp.empty((0, 2), dtype=onp.float32)
 
     return coords
 

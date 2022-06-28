@@ -5,16 +5,17 @@ import numpy as onp
 from deeptile.algorithms import transform
 from deeptile.extensions import stitch
 from flax.training import checkpoints
+from functools import partial
 from jax import jit
 from pathlib import Path
 from skimage.transform import resize
 
-from cellori.utils import masks
+from cellori.utils import masks, spots
 
 TRAINED_MODELS_DIR = Path(__file__).parent.joinpath('trained_models')
 
 
-class Cellori:
+class CelloriSegmentation:
 
     def __init__(self, model='cyto', batch_size=8):
 
@@ -96,3 +97,94 @@ class Cellori:
             mask = np.stack(mask_list)
 
         return mask, y
+
+
+class CelloriSpots:
+
+    def __init__(self, model='spots', batch_size=8):
+
+        self.batch_size = batch_size
+
+        if model == 'spots':
+
+            from cellori.applications.spots.model import CelloriSpotsModel
+
+            self.model = CelloriSpotsModel()
+            self.variables = checkpoints.restore_checkpoint(TRAINED_MODELS_DIR.joinpath('spots'), None)
+
+            @jit
+            def jitted(x):
+
+                x = np.moveaxis(x, 1, -1)
+                deltas, labels = self.model.apply(self.variables, x, False)
+                y = np.concatenate((deltas, labels), axis=-1)
+
+                return y
+
+            def process(x):
+
+                x = resize(x, output_shape=(x.shape[0], 1, 256, 256), order=1, preserve_range=True)
+                y = jitted(x)
+                y = np.moveaxis(y, -1, 1)
+
+                return y
+
+            process(np.zeros((self.batch_size, 1, 256, 256)))
+            self.process = process
+
+            def postprocess(y, min_distance, threshold):
+
+                deltas = np.moveaxis(y[:2], 0, -1)
+                labels = np.moveaxis(y[2:3], 0, -1)
+                coords = spots.compute_spot_coordinates(deltas, labels, min_distance=min_distance, threshold=threshold)
+
+                return coords
+
+            dummy_output = onp.zeros((3, 256, 256))
+            dummy_output[2, 0, 0] = 1
+            postprocess(dummy_output, 1, 0.75)
+            del dummy_output
+            self.postprocess = postprocess
+
+    def predict(self, x, scale=1, min_distance=1, threshold=0.75):
+
+        if x.ndim == 3:
+            batch_axis = None
+            x = (x - onp.min(x)) / (onp.ptp(x) + 1e-7)
+            x = onp.pad(x, ((0, 0), (2, 2), (2, 2)))
+        elif x.ndim == 4:
+            batch_axis = 0
+            x = (x - onp.min(x, axis=(1, 2, 3)).reshape((-1, 1, 1, 1))) / \
+                (onp.ptp(x, axis=(1, 2, 3)).reshape((-1, 1, 1, 1)) + 1e-7)
+            x = onp.pad(x, ((0, 0), (0, 0), (2, 2), (2, 2)))
+        else:
+            raise ValueError("Input does not have the correct dimensions.")
+
+        if scale != 1:
+            tile_size = tuple(onp.rint(onp.array([256, 256]) / scale).astype(int))
+        else:
+            tile_size = (256, 256)
+
+        dt = deeptile.load(x)
+        dt.configure(tile_size=tile_size, overlap=(0.1, 0.1))
+
+        tiles = dt.get_tiles()
+        tiles = dt.process(tiles, transform(self.process, vectorized=True),
+                           batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
+        y = dt.stitch(tiles, stitch.stitch_tiles(blend=True, sigma=5))[..., 2:-2, 2:-2]
+
+        dt2 = deeptile.load(y)
+        dt2.configure(tile_size=(256, 256), overlap=(0.1, 0.1))
+
+        tiles2 = dt2.get_tiles()
+        tiles2 = dt2.process(tiles2, transform(partial(self.postprocess,
+                                                       min_distance=min_distance, threshold=threshold),
+                                               vectorized=False, output_type='tiled_coords'), batch_axis=batch_axis)
+        coords = dt.stitch(tiles2, stitch.stitch_coords())
+
+        if x.ndim == 3:
+            coords = coords[0]
+        else:
+            coords = np.asarray(coords)
+
+        return coords, y
