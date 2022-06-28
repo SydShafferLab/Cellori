@@ -10,8 +10,6 @@ from jax import jit
 from pathlib import Path
 from skimage.transform import resize
 
-from cellori.utils import masks, spots
-
 TRAINED_MODELS_DIR = Path(__file__).parent.joinpath('trained_models')
 
 
@@ -24,6 +22,7 @@ class CelloriSegmentation:
         if model == 'cyto':
 
             from cellori.applications.cyto.model import CelloriCytoModel
+            from cellori.utils import masks
 
             self.model = CelloriCytoModel()
             self.variables = checkpoints.restore_checkpoint(TRAINED_MODELS_DIR.joinpath('cyto'), None)
@@ -108,6 +107,7 @@ class CelloriSpots:
         if model == 'spots':
 
             from cellori.applications.spots.model import CelloriSpotsModel
+            from cellori.utils import spots
 
             self.model = CelloriSpotsModel()
             self.variables = checkpoints.restore_checkpoint(TRAINED_MODELS_DIR.joinpath('spots'), None)
