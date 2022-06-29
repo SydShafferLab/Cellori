@@ -6,7 +6,7 @@ from jax.lax import scan
 from skimage import feature
 
 
-def compute_spot_coordinates(deltas, labels, min_distance=1, threshold=0.75):
+def compute_spot_coordinates(deltas, labels, min_distance=1, threshold=1.0):
 
     counts, convergence = jit(colocalize_pixels)(deltas, labels)
     peaks = feature.peak_local_max(onp.asarray(counts + labels[:, :, 0] - 1),
