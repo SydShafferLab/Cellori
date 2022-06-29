@@ -57,7 +57,7 @@ class CelloriSegmentation:
 
                 return mask
 
-            self.postprocess = postprocess
+            self.postprocess = transform(postprocess, vectorized=False)
 
     def predict(self, x, diameter=30, cellprob_threshold=0.5, flow_threshold=0.5):
 
@@ -87,13 +87,15 @@ class CelloriSegmentation:
         tiles = dt.process(tiles, self.process, batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
         y = dt.stitch(tiles, stitch.stitch_tiles(blend=True, sigma=5))[..., 2:-2, 2:-2]
 
-        if ndim == 3:
-            mask = self.postprocess(y, cellprob_threshold, flow_threshold)
-        else:
-            mask_list = []
-            for i in range(len(y)):
-                mask_list.append(self.postprocess(y[i], cellprob_threshold, flow_threshold))
-            mask = np.stack(mask_list)
+        tile_size2 = (min(max(4 * tile_size[0], 1024), y.shape[-2]), min(max(4 * tile_size[1], 1024), y.shape[-1]))
+
+        dt2 = deeptile.load(y)
+        dt2.configure(tile_size=tile_size2, overlap=(0.2, 0.2))
+
+        tiles2 = dt2.get_tiles()
+        tiles2 = dt2.process(tiles2, partial(self.postprocess, cellprob_threshold=cellprob_threshold,
+                                             flow_threshold=flow_threshold), batch_axis=batch_axis)
+        mask = dt2.stitch(tiles2, stitch.stitch_masks())
 
         return mask, y
 
