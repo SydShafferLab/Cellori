@@ -62,11 +62,13 @@ class CelloriSegmentation:
 
     def predict(self, x, diameter=30, cellprob_threshold=0.5, flow_threshold=0.5):
 
-        if x.ndim == 3:
+        ndim = x.ndim
+
+        if ndim == 3:
             batch_axis = None
             x = (x - onp.min(x)) / (onp.ptp(x) + 1e-7)
             x = onp.pad(x, ((0, 0), (2, 2), (2, 2)))
-        elif x.ndim == 4:
+        elif ndim == 4:
             batch_axis = 0
             x = (x - onp.min(x, axis=(1, 2, 3)).reshape((-1, 1, 1, 1))) / \
                 (onp.ptp(x, axis=(1, 2, 3)).reshape((-1, 1, 1, 1)) + 1e-7)
@@ -87,7 +89,7 @@ class CelloriSegmentation:
                            batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
         y = dt.stitch(tiles, stitch.stitch_tiles(blend=True, sigma=5))[..., 2:-2, 2:-2]
 
-        if x.ndim == 3:
+        if ndim == 3:
             mask = self.postprocess(y, cellprob_threshold, flow_threshold)
         else:
             mask_list = []
@@ -123,9 +125,11 @@ class CelloriSpots:
 
             def process(x):
 
-                x = resize(x, output_shape=(x.shape[0], 1, 256, 256), order=1, preserve_range=True)
+                shape = x.shape
+                x = resize(x, output_shape=(shape[0], 1, 256, 256), order=1, preserve_range=True)
                 y = jitted(x)
                 y = np.moveaxis(y, -1, 1)
+                y = resize(y, output_shape=(shape[0], 3, shape[2], shape[3]), order=1, preserve_range=True)
 
                 return y
 
@@ -148,17 +152,19 @@ class CelloriSpots:
 
     def predict(self, x, scale=1, min_distance=1, threshold=0.75):
 
-        if x.ndim == 3:
+        ndim = x.ndim
+
+        if ndim == 2:
             batch_axis = None
             x = (x - onp.min(x)) / (onp.ptp(x) + 1e-7)
-            x = onp.pad(x, ((0, 0), (2, 2), (2, 2)))
-        elif x.ndim == 4:
+        elif ndim == 3:
             batch_axis = 0
-            x = (x - onp.min(x, axis=(1, 2, 3)).reshape((-1, 1, 1, 1))) / \
-                (onp.ptp(x, axis=(1, 2, 3)).reshape((-1, 1, 1, 1)) + 1e-7)
-            x = onp.pad(x, ((0, 0), (0, 0), (2, 2), (2, 2)))
+            x = (x - onp.min(x, axis=(1, 2)).reshape((-1, 1, 1))) / \
+                (onp.ptp(x, axis=(1, 2)).reshape((-1, 1, 1)) + 1e-7)
         else:
             raise ValueError("Input does not have the correct dimensions.")
+
+        x = onp.expand_dims(x, axis=-3)
 
         if scale != 1:
             tile_size = tuple(onp.rint(onp.array([256, 256]) / scale).astype(int))
@@ -171,7 +177,7 @@ class CelloriSpots:
         tiles = dt.get_tiles()
         tiles = dt.process(tiles, transform(self.process, vectorized=True),
                            batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
-        y = dt.stitch(tiles, stitch.stitch_tiles(blend=True, sigma=5))[..., 2:-2, 2:-2]
+        y = dt.stitch(tiles, stitch.stitch_tiles(blend=True, sigma=5))
 
         dt2 = deeptile.load(y)
         dt2.configure(tile_size=(256, 256), overlap=(0.1, 0.1))
@@ -182,9 +188,9 @@ class CelloriSpots:
                                                vectorized=False, output_type='tiled_coords'), batch_axis=batch_axis)
         coords = dt.stitch(tiles2, stitch.stitch_coords())
 
-        if x.ndim == 3:
+        if ndim == 2:
             coords = coords[0]
         else:
-            coords = np.asarray(coords)
+            coords = onp.asarray(coords)
 
         return coords, y
