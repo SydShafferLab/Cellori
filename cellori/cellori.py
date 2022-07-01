@@ -129,6 +129,7 @@ class CelloriSpots:
                 x = resize(x, output_shape=(shape[0], 256, 256), order=1, preserve_range=True)
                 y = jitted(x)
                 y = resize(y, output_shape=(shape[0], 3, shape[1], shape[2]), order=1, preserve_range=True)
+                y[:, :2] = y[:, :2] * shape[1] / 256
 
                 return y
 
