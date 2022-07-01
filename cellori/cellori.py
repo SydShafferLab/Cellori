@@ -81,18 +81,15 @@ class CelloriSegmentation:
             tile_size = (256, 256)
 
         dt = deeptile.load(x)
-        dt.configure(tile_size=tile_size, overlap=(0.1, 0.1))
-
-        tiles = dt.get_tiles()
+        dt.link_data = False
+        tiles = dt.get_tiles(tile_size=tile_size, overlap=(0.1, 0.1))
         tiles = dt.process(tiles, self.process, batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
         y = dt.stitch(tiles, stitch.stitch_tiles(blend=True, sigma=5))[..., 2:-2, 2:-2]
 
-        tile_size2 = (min(max(4 * tile_size[0], 1024), y.shape[-2]), min(max(4 * tile_size[1], 1024), y.shape[-1]))
-
         dt2 = deeptile.load(y)
-        dt2.configure(tile_size=tile_size2, overlap=(0.2, 0.2))
-
-        tiles2 = dt2.get_tiles()
+        dt.link_data = False
+        tile_size2 = (min(max(4 * tile_size[0], 1024), y.shape[-2]), min(max(4 * tile_size[1], 1024), y.shape[-1]))
+        tiles2 = dt2.get_tiles(tile_size=tile_size2, overlap=(0.2, 0.2))
         tiles2 = dt2.process(tiles2, partial(self.postprocess, cellprob_threshold=cellprob_threshold,
                                              flow_threshold=flow_threshold), batch_axis=batch_axis)
         mask = dt2.stitch(tiles2, stitch.stitch_masks())
@@ -197,23 +194,16 @@ class CelloriSpots:
             tile_size = (256, 256)
 
         dt = deeptile.load(x)
-        dt.configure(tile_size=tile_size, overlap=(0.1, 0.1))
-
-        tiles = dt.get_tiles()
+        dt.link_data = False
+        tiles = dt.get_tiles(tile_size=tile_size, overlap=(0.1, 0.1))
         tiles = dt.process(tiles, self.process, batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
         y = dt.stitch(tiles, stitch.stitch_tiles(blend=True, sigma=5))
 
         dt2 = deeptile.load(y)
-        dt2.configure(tile_size=(256, 256), overlap=(0.1, 0.1))
-
-        tiles2 = dt2.get_tiles()
+        dt2.link_data = False
+        tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1))
         tiles2 = dt2.process(tiles2, partial(self.postprocess,
                                              min_distance=min_distance, threshold=threshold), batch_axis=batch_axis)
-        coords = dt.stitch(tiles2, stitch.stitch_coords())
-
-        if ndim == 2:
-            coords = coords[0]
-        else:
-            coords = onp.asarray(coords)
+        coords = dt2.stitch(tiles2, stitch.stitch_coords())
 
         return coords, y
