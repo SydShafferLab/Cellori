@@ -1,5 +1,6 @@
 import numpy as np
 
+from functools import cached_property
 from skimage import measure
 from scipy import ndimage, stats
 
@@ -22,7 +23,7 @@ class SpotMetrics:
         if rejected_keys:
             raise ValueError(f"Invalid arguments in constructor: {rejected_keys}")
 
-    @property
+    @cached_property
     def l1(self):
 
         _l1s = np.linalg.norm(self.y_true - self.y_single_pred, ord=1, axis=-1)
@@ -34,7 +35,7 @@ class SpotMetrics:
 
         return _best_l1
 
-    @property
+    @cached_property
     def l2(self):
 
         _l2s = np.linalg.norm(self.y_true - self.y_single_pred, ord=2, axis=-1)
@@ -46,7 +47,7 @@ class SpotMetrics:
 
         return _best_l2
 
-    @property
+    @cached_property
     def smooth_l1(self):
 
         diff = self.y_true - self.y_single_pred
@@ -141,7 +142,7 @@ class PixelMetrics:
         self._p = self._tp + self._fn
         self._pp = self._tp + self._fp
 
-    @property
+    @cached_property
     def recall(self):
 
         if self._p > 0:
@@ -154,7 +155,7 @@ class PixelMetrics:
 
         return _recall
 
-    @property
+    @cached_property
     def precision(self):
 
         if self._pp > 0:
@@ -167,7 +168,7 @@ class PixelMetrics:
 
         return _precision
 
-    @property
+    @cached_property
     def f1(self):
 
         _recall = self.recall
@@ -180,7 +181,7 @@ class PixelMetrics:
 
         return _f1
 
-    @property
+    @cached_property
     def jaccard(self):
 
         _union = self._tp + self._fp + self._fn
@@ -213,7 +214,7 @@ class RegionMetrics:
             PixelMetrics(y_true == region.label, y_pred, region.label, id_pred) for region in measure.regionprops(y_true)
         ]
 
-    @property
+    @cached_property
     def recall(self):
 
         _recalls = [pixel_metrics.recall for pixel_metrics in self._pixel_metrics]
@@ -231,7 +232,7 @@ class RegionMetrics:
 
         return _best_recall
 
-    @property
+    @cached_property
     def precision(self):
 
         _precisions = [pixel_metrics.precision for pixel_metrics in self._pixel_metrics]
@@ -249,7 +250,7 @@ class RegionMetrics:
 
         return _best_precision
 
-    @property
+    @cached_property
     def f1(self):
 
         _f1s = [pixel_metrics.f1 for pixel_metrics in self._pixel_metrics]
@@ -267,7 +268,7 @@ class RegionMetrics:
 
         return _best_f1
 
-    @property
+    @cached_property
     def jaccard(self):
 
         _jaccards = [pixel_metrics.jaccard for pixel_metrics in self._pixel_metrics]
