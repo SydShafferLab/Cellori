@@ -2,7 +2,7 @@ import deeptile
 import jax.numpy as np
 import numpy as onp
 
-from deeptile.algorithms import partial, transform
+from deeptile import partial, transform
 from deeptile.extensions import stitch
 from flax.training import checkpoints
 from jax import jit
@@ -27,11 +27,11 @@ class CelloriSegmentation:
         ndim = x.ndim
 
         if ndim == 3:
-            batch_axis = None
+            batch_axis = False
             x = (x - onp.min(x)) / (onp.ptp(x) + 1e-7)
             x = onp.pad(x, ((0, 0), (2, 2), (2, 2)))
         elif ndim == 4:
-            batch_axis = 0
+            batch_axis = True
             x = (x - onp.min(x, axis=(1, 2, 3)).reshape((-1, 1, 1, 1))) / \
                 (onp.ptp(x, axis=(1, 2, 3)).reshape((-1, 1, 1, 1)) + 1e-7)
             x = onp.pad(x, ((0, 0), (0, 0), (2, 2), (2, 2)))
@@ -67,29 +67,29 @@ class _CelloriCyto(CelloriSegmentation):
 
             return y
 
-        def process(x):
+        def process(tiles):
 
-            shape = x.shape
-            x = resize(x, output_shape=(shape[0], 2, 256, 256), order=1, preserve_range=True)
-            y = jitted(x)
+            shape = tiles.shape
+            tiles = resize(tiles, output_shape=(shape[0], 2, 256, 256), order=1, preserve_range=True)
+            y = jitted(tiles)
             y = np.moveaxis(y, -1, 1)
             y = resize(y, output_shape=(shape[0], 3, shape[2], shape[3]), order=1, preserve_range=True)
 
             return y
 
         process(np.zeros((self.batch_size, 2, 256, 256)))
-        self.process = transform(process, vectorized=True)
+        self.process = transform(process)
 
-        def postprocess(y, cellprob_threshold, flow_threshold):
+        def postprocess(tile, cellprob_threshold, flow_threshold):
 
-            flows = onp.array(y[:2])
-            semantic = onp.array(y[2])
+            flows = onp.array(tile[:2])
+            semantic = onp.array(tile[2])
             mask, _ = masks.compute_masks_dynamics(flows, semantic, cellprob_threshold=cellprob_threshold,
                                                    flow_threshold=flow_threshold)
 
             return mask
 
-        self.postprocess = transform(postprocess, vectorized=False)
+        self.postprocess = transform(postprocess)
 
     def predict(self, x, diameter=30, cellprob_threshold=0.5, flow_threshold=0.5):
 
@@ -129,10 +129,10 @@ class CelloriSpots:
         ndim = x.ndim
 
         if ndim == 2:
-            batch_axis = None
+            batch_axis = False
             x = (x - onp.min(x)) / (onp.ptp(x) + 1e-7)
         elif ndim == 3:
-            batch_axis = 0
+            batch_axis = True
             x = (x - onp.min(x, axis=(1, 2)).reshape((-1, 1, 1))) / \
                 (onp.ptp(x, axis=(1, 2)).reshape((-1, 1, 1)) + 1e-7)
         else:
@@ -168,23 +168,23 @@ class _CelloriSpots(CelloriSpots):
 
             return y
 
-        def process(x):
+        def process(tiles):
 
-            shape = x.shape
-            x = resize(x, output_shape=(shape[0], 256, 256), order=1, preserve_range=True)
-            y = jitted(x)
+            shape = tiles.shape
+            tiles = resize(tiles, output_shape=(shape[0], 256, 256), order=1, preserve_range=True)
+            y = jitted(tiles)
             y = resize(y, output_shape=(shape[0], 3, shape[1], shape[2]), order=1, preserve_range=True)
             y[:, :2] = y[:, :2] * shape[1] / 256
 
             return y
 
         process(np.zeros((self.batch_size, 256, 256)))
-        self.process = transform(process, vectorized=True)
+        self.process = transform(process)
 
-        def postprocess(y, min_distance, threshold):
+        def postprocess(tile, min_distance, threshold):
 
-            deltas = np.moveaxis(y[:2], 0, -1)
-            labels = np.moveaxis(y[2:3], 0, -1)
+            deltas = np.moveaxis(tile[:2], 0, -1)
+            labels = np.moveaxis(tile[2:3], 0, -1)
             coords, adjusted_counts = spots.compute_spot_coordinates(deltas, labels, min_distance=min_distance,
                                                                      threshold=threshold)
 
@@ -194,7 +194,7 @@ class _CelloriSpots(CelloriSpots):
         dummy_output[2, 0, 0] = 1
         postprocess(dummy_output, 1, 0.75)
         del dummy_output
-        self.postprocess = transform(postprocess, vectorized=False, output_type=('tiled_coords', 'tiled_image'))
+        self.postprocess = transform(postprocess, output_type=('tiled_coords', 'tiled_image'))
 
     def predict(self, x, scale=1, min_distance=1, threshold=1.5):
 
@@ -227,24 +227,24 @@ class _CelloriLoG(CelloriSpots):
         self.variables = None
         self.batch_size = None
 
-        def process(x):
+        def process(tile):
 
-            shape = x.shape
-            x = resize(x, output_shape=(256, 256), order=1, preserve_range=True)
-            y = baseline.log_filter(x, 1)
+            shape = tile.shape
+            tile = resize(tile, output_shape=(256, 256), order=1, preserve_range=True)
+            y = baseline.log_filter(tile, 1)
             y = resize(y, output_shape=(shape[0], shape[1]), order=1, preserve_range=True)
 
             return y
 
-        self.process = transform(process, vectorized=False)
+        self.process = transform(process)
 
-        def postprocess(y, min_distance, threshold):
+        def postprocess(tile, min_distance, threshold):
 
-            coords = baseline.threshold_local_max(y, min_distance=min_distance, threshold=threshold)
+            coords = baseline.threshold_local_max(tile, min_distance=min_distance, threshold=threshold)
 
             return coords
 
-        self.postprocess = transform(postprocess, vectorized=False, output_type='tiled_coords')
+        self.postprocess = transform(postprocess, output_type='tiled_coords')
 
     def predict(self, x, scale=1, min_distance=1, threshold=0.05):
 
