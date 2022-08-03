@@ -24,7 +24,11 @@ class CelloriSegmentation:
     @staticmethod
     def preprocess(x, diameter):
 
+        shape = x.shape
         ndim = x.ndim
+
+        if diameter != 30:
+            x = resize(x, (*shape[:-2], round(shape[-2] * 30 / diameter), round(shape[-1] * 30 / diameter)))
 
         if ndim == 3:
             batch_axis = False
@@ -38,12 +42,7 @@ class CelloriSegmentation:
         else:
             raise ValueError("Input does not have the correct dimensions.")
 
-        if diameter != 30:
-            tile_size = tuple(onp.rint(onp.array([256, 256]) * (diameter / 30)).astype(int))
-        else:
-            tile_size = (256, 256)
-
-        return x, batch_axis, tile_size
+        return x, shape, batch_axis
 
 
 class _CelloriCyto(CelloriSegmentation):
@@ -64,16 +63,14 @@ class _CelloriCyto(CelloriSegmentation):
             x = np.moveaxis(x, 1, -1)
             flows, semantic = self.model.apply(self.variables, x, False)
             y = np.concatenate((flows, semantic), axis=-1)
+            y = np.moveaxis(y, -1, 1)
 
             return y
 
         def process(tiles):
 
-            shape = tiles.shape
-            tiles = resize(tiles, output_shape=(shape[0], 2, 256, 256), order=1, preserve_range=True)
             y = jitted(tiles)
-            y = np.moveaxis(y, -1, 1)
-            y = resize(y, output_shape=(shape[0], 3, shape[2], shape[3]), order=1, preserve_range=True)
+            y = onp.asarray(y)
 
             return y
 
@@ -93,18 +90,19 @@ class _CelloriCyto(CelloriSegmentation):
 
     def predict(self, x, diameter=30, cellprob_threshold=0.5, flow_threshold=0.5):
 
-        x, batch_axis, tile_size = self.preprocess(x, diameter)
+        x, shape, batch_axis = self.preprocess(x, diameter)
 
         dt = deeptile.load(x)
         dt.link_data = False
-        tiles = dt.get_tiles(tile_size=tile_size, overlap=(0.1, 0.1))
+        tiles = dt.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1)).compute()
         tiles = dt.process(tiles, self.process, batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
         y = dt.stitch(tiles, stitch.stitch_tiles(blend=True, sigma=5))[..., 2:-2, 2:-2]
+        y = resize(y, output_shape=(*y.shape[:-2], shape[-2], shape[-1]), order=1, preserve_range=True)
 
         dt2 = deeptile.load(y)
         dt.link_data = False
-        tile_size2 = (min(max(4 * tile_size[0], 1024), y.shape[-2]), min(max(4 * tile_size[1], 1024), y.shape[-1]))
-        tiles2 = dt2.get_tiles(tile_size=tile_size2, overlap=(0.2, 0.2))
+        tile_size2 = (min(1024, y.shape[-2]), min(1024, y.shape[-1]))
+        tiles2 = dt2.get_tiles(tile_size=tile_size2, overlap=(0.2, 0.2)).compute()
         tiles2 = dt2.process(tiles2, partial(self.postprocess, cellprob_threshold=cellprob_threshold,
                                              flow_threshold=flow_threshold), batch_axis=batch_axis)
         mask = dt2.stitch(tiles2, stitch.stitch_masks())
@@ -126,7 +124,11 @@ class CelloriSpots:
     @staticmethod
     def preprocess(x, scale):
 
+        shape = x.shape
         ndim = x.ndim
+
+        if scale != 1:
+            x = resize(x, (*shape[:-2], round(shape[-2] * scale), round(shape[-1] * scale)))
 
         if ndim == 2:
             batch_axis = False
@@ -138,12 +140,7 @@ class CelloriSpots:
         else:
             raise ValueError("Input does not have the correct dimensions.")
 
-        if scale != 1:
-            tile_size = tuple(onp.rint(onp.array([256, 256]) / scale).astype(int))
-        else:
-            tile_size = (256, 256)
-
-        return x, batch_axis, tile_size
+        return x, shape, batch_axis
 
 
 class _CelloriSpots(CelloriSpots):
@@ -170,45 +167,45 @@ class _CelloriSpots(CelloriSpots):
 
         def process(tiles):
 
-            shape = tiles.shape
-            tiles = resize(tiles, output_shape=(shape[0], 256, 256), order=1, preserve_range=True)
             y = jitted(tiles)
-            y = resize(y, output_shape=(shape[0], 3, shape[1], shape[2]), order=1, preserve_range=True)
-            y[:, :2] = y[:, :2] * shape[1] / 256
+            y = onp.asarray(y)
 
             return y
 
         process(np.zeros((self.batch_size, 256, 256)))
         self.process = transform(process)
 
-        def postprocess(tile, min_distance, threshold):
+        def postprocess(tile, scale, min_distance, threshold):
 
             deltas = np.moveaxis(tile[:2], 0, -1)
             labels = np.moveaxis(tile[2:3], 0, -1)
-            coords, adjusted_counts = spots.compute_spot_coordinates(deltas, labels, min_distance=min_distance,
-                                                                     threshold=threshold)
+            coords, adjusted_counts = spots.compute_spot_coordinates(deltas, labels, scale=scale,
+                                                                     min_distance=min_distance, threshold=threshold)
 
             return coords, adjusted_counts
 
         dummy_output = onp.zeros((3, 256, 256))
         dummy_output[2, 0, 0] = 1
-        postprocess(dummy_output, 1, 0.75)
+        postprocess(dummy_output, 1, 1, 0.75)
         del dummy_output
         self.postprocess = transform(postprocess, output_type=('tiled_coords', 'tiled_image'))
 
     def predict(self, x, scale=1, min_distance=1, threshold=1.5):
 
-        x, batch_axis, tile_size = self.preprocess(x, scale)
+        x, shape, batch_axis = self.preprocess(x, scale)
 
         dt = deeptile.load(x, link_data=False)
-        tiles = dt.get_tiles(tile_size=tile_size, overlap=(0.1, 0.1))
+        tiles = dt.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1)).compute()
         tiles = dt.process(tiles, self.process, batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
         y = dt.stitch(tiles, stitch.stitch_tiles(blend=True, sigma=5))
+        y = resize(y, output_shape=(*y.shape[:-2], shape[-2], shape[-1]), order=1, preserve_range=True)
+        y[..., :2, :, :] = y[..., :2, :, :] / scale
 
         dt2 = deeptile.load(y, link_data=False)
-        tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1))
+        tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1)).compute()
         coords, adjusted_counts = dt2.process(tiles2, partial(self.postprocess,
-                                              min_distance=min_distance, threshold=threshold), batch_axis=batch_axis)
+                                              scale=scale, min_distance=min_distance, threshold=threshold),
+                                              batch_axis=batch_axis)
         coords = dt2.stitch(coords, stitch.stitch_coords())
         adjusted_counts = dt2.stitch(adjusted_counts, stitch.stitch_tiles(blend=True, sigma=5))
         y = np.concatenate((y, onp.expand_dims(adjusted_counts, -3)), axis=-3)
@@ -227,12 +224,9 @@ class _CelloriLoG(CelloriSpots):
         self.variables = None
         self.batch_size = None
 
-        def process(tile):
+        def process(tile, sigma):
 
-            shape = tile.shape
-            tile = resize(tile, output_shape=(256, 256), order=1, preserve_range=True)
-            y = baseline.log_filter(tile, 1)
-            y = resize(y, output_shape=(shape[0], shape[1]), order=1, preserve_range=True)
+            y = baseline.log_filter(tile, sigma)
 
             return y
 
@@ -246,17 +240,19 @@ class _CelloriLoG(CelloriSpots):
 
         self.postprocess = transform(postprocess, output_type='tiled_coords')
 
-    def predict(self, x, scale=1, min_distance=1, threshold=0.05):
+    def predict(self, x, scale=1, sigma=1, min_distance=1, threshold=0.05):
 
-        x, batch_axis, tile_size = self.preprocess(x, scale)
+        x, shape, batch_axis = self.preprocess(x, scale)
 
         dt = deeptile.load(x, link_data=False)
-        tiles = dt.get_tiles(tile_size=tile_size, overlap=(0.1, 0.1))
-        tiles = dt.process(tiles, self.process, batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
+        tiles = dt.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1)).compute()
+        tiles = dt.process(tiles, partial(self.process, sigma=sigma),
+                           batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
         y = dt.stitch(tiles, stitch.stitch_tiles(blend=True, sigma=5))
+        # y = resize(y, output_shape=(*y.shape[:-2], shape[-2], shape[-1]), order=1, preserve_range=True)
 
         dt2 = deeptile.load(y, link_data=False)
-        tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1))
+        tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1)).compute()
         tiles2 = dt2.process(tiles2, partial(self.postprocess,
                                              min_distance=min_distance, threshold=threshold), batch_axis=batch_axis)
         coords = dt2.stitch(tiles2, stitch.stitch_coords())

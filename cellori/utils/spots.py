@@ -6,10 +6,11 @@ from jax.lax import scan
 from skimage import feature, filters
 
 
-def compute_spot_coordinates(deltas, labels, min_distance=1, threshold=1.5):
+def compute_spot_coordinates(deltas, labels, scale=1, min_distance=1, threshold=1.5):
 
     counts, convergence = jit(colocalize_pixels)(deltas, labels)
     adjusted_counts = filters.gaussian(onp.asarray(counts + labels[:, :, 0] - 1), sigma=0.25)
+    adjusted_counts = adjusted_counts * (scale ** 2)
     peaks = feature.peak_local_max(adjusted_counts,
                                    min_distance=min_distance, threshold_abs=threshold, exclude_border=False)
     num_peaks = len(peaks)
