@@ -21,6 +21,7 @@ class RandomAugment:
         self.dxy = []
         self.theta = []
         self.affines = []
+        self.intensity_scales = []
 
     def generate_transforms(self, images, key, base_scales, output_shape):
 
@@ -65,6 +66,11 @@ class RandomAugment:
             affine[:, 2] += onp.array(output_shape) / 2 - onp.array(image_center) + dxy
             self.affines.append(affine)
 
+            # Random intensity scaling
+            key, subkey = random.split(key)
+            intensity_scale = (random.uniform(subkey) - 0.5) * 2 * np.log(5)
+            self.intensity_scales.append(intensity_scale)
+
     def apply_coord_transforms(self, coords, filter_coords=True):
 
         transformed_coords = []
@@ -95,7 +101,8 @@ class RandomAugment:
 
         transformed_images = []
 
-        for image, flip0, flip1, affine in zip(images, self.flip0, self.flip1, self.affines):
+        for image, affine, flip0, flip1, intensity_scale in \
+                zip(images, self.affines, self.flip0, self.flip1, self.intensity_scales):
 
             # Apply affine transformation
             if interpolation == 'nearest':
@@ -108,6 +115,9 @@ class RandomAugment:
                 transformed_image = onp.flip(transformed_image, axis=0)
             if flip1:
                 transformed_image = onp.flip(transformed_image, axis=1)
+
+            # Random intensity scaling
+            transformed_image = transformed_image * intensity_scale
 
             transformed_images.append(transformed_image)
 
