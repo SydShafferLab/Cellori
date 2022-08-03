@@ -68,7 +68,7 @@ class RandomAugment:
 
             # Random intensity scaling
             key, subkey = random.split(key)
-            intensity_scale = (random.uniform(subkey) - 0.5) * 2 * np.log(5)
+            intensity_scale = np.exp((random.uniform(subkey) - 0.5) * 2 * np.log(5))
             self.intensity_scales.append(intensity_scale)
 
     def apply_coord_transforms(self, coords, filter_coords=True):
