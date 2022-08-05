@@ -249,7 +249,7 @@ class _CelloriLoG(CelloriSpots):
         tiles = dt.process(tiles, partial(self.process, sigma=sigma),
                            batch_size=self.batch_size, batch_axis=batch_axis, pad_final_batch=True)
         y = dt.stitch(tiles, stitch.stitch_tiles(blend=True, sigma=5))
-        # y = resize(y, output_shape=(*y.shape[:-2], shape[-2], shape[-1]), order=1, preserve_range=True)
+        y = resize(y, output_shape=(*y.shape[:-2], shape[-2], shape[-1]), order=1, preserve_range=True)
 
         dt2 = deeptile.load(y, link_data=False)
         tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1)).compute()
