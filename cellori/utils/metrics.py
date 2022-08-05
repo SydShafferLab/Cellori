@@ -94,9 +94,9 @@ class SpotsMetrics:
 
         if agg_metric == 'f1':
 
-            precision = tp / (tp + fp)
-            recall = tp / (tp + fn)
-            f1 = 2 * precision * recall / (precision + recall)
+            precision = tp / (tp + fp + 1e-07)
+            recall = tp / (tp + fn + 1e-07)
+            f1 = 2 * precision * recall / (precision + recall + 1e-07)
 
             return f1
 
