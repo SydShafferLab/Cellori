@@ -83,9 +83,9 @@ class RandomAugment:
 
             # Random flip
             if flip0:
-                transformed_coord[:, 0] = self.output_shape[0] - 0.5 - transformed_coord[:, 0]
+                transformed_coord[:, 0] = self.output_shape[0] - 1 - transformed_coord[:, 0]
             if flip1:
-                transformed_coord[:, 1] = self.output_shape[1] - 0.5 - transformed_coord[:, 1]
+                transformed_coord[:, 1] = self.output_shape[1] - 1 - transformed_coord[:, 1]
 
             # Filter coordinates outside of transformed image
             if filter_coords:
