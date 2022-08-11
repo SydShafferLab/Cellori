@@ -86,7 +86,6 @@ class SpotsMetrics:
             if getattr(spot_metrics, match_metric)['value'] < threshold
         ]
         match_ids = np.unique([getattr(match, match_metric)['match'] for match in matches])
-        match_ids = match_ids[match_ids > 0]
 
         tp = len(match_ids)
         fp = len(self.y_pred) - tp
