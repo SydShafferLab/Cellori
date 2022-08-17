@@ -40,7 +40,8 @@ def generate_dataset(path, key, adjustment='normalize',
     tiles1 = dt.get_tiles(tile_size, overlap)
     tiles2 = tiles1.import_data(coords_list, 'coords')
     nonempty_tiles = [(image, coords) for image, coords in
-                      zip(np.concatenate(tiles1.nonempty_tiles), np.concatenate(tiles2.nonempty_tiles))
+                      zip(np.concatenate(tiles1[tiles1.nonempty_indices]),
+                          np.concatenate(tiles2[tiles2.nonempty_indices]))
                       if len(coords) > min_spots]
     tiled_images, tiled_coords = zip(*nonempty_tiles)
     tiled_images = np.array(tiled_images)
