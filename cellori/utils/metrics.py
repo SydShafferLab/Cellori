@@ -26,44 +26,71 @@ class SpotMetrics:
     @cached_property
     def l1(self):
 
-        _l1s = np.linalg.norm(self.y_true - self.y_single_pred, ord=1, axis=-1)
-        _best_l1s_index = np.argmin(_l1s)
-        _best_l1 = {
-            'value': _l1s[_best_l1s_index],
-            'match': _best_l1s_index
-        }
+        if len(self.y_true) > 0:
+
+            _l1s = np.linalg.norm(self.y_true - self.y_single_pred, ord=1, axis=-1)
+            _best_l1s_index = np.argmin(_l1s)
+            _best_l1 = {
+                'value': _l1s[_best_l1s_index],
+                'match': _best_l1s_index
+            }
+
+        else:
+
+            _best_l1 = {
+                'value': np.inf,
+                'match': None
+            }
 
         return _best_l1
 
     @cached_property
     def l2(self):
 
-        _l2s = np.linalg.norm(self.y_true - self.y_single_pred, ord=2, axis=-1)
-        _best_l2s_index = np.argmin(_l2s)
-        _best_l2 = {
-            'value': _l2s[_best_l2s_index],
-            'match': _best_l2s_index
-        }
+        if len(self.y_true) > 0:
+
+            _l2s = np.linalg.norm(self.y_true - self.y_single_pred, ord=2, axis=-1)
+            _best_l2s_index = np.argmin(_l2s)
+            _best_l2 = {
+                'value': _l2s[_best_l2s_index],
+                'match': _best_l2s_index
+            }
+
+        else:
+
+            _best_l2 = {
+                'value': np.inf,
+                'match': None
+            }
 
         return _best_l2
 
     @cached_property
     def smooth_l1(self):
 
-        diff = self.y_true - self.y_single_pred
-        _l1s = np.linalg.norm(diff, ord=1, axis=-1)
-        _l2s = np.linalg.norm(diff, ord=2, axis=-1)
-        _criteria = _l1s < self.smooth_l1_beta
+        if len(self.y_true) > 0:
 
-        _smooth_l1s = 0
-        _smooth_l1s = _smooth_l1s + _criteria * 0.5 * _l2s / self.smooth_l1_beta
-        _smooth_l1s = _smooth_l1s + (~_criteria) * (_l1s - 0.5 * self.smooth_l1_beta)
+            diff = self.y_true - self.y_single_pred
+            _l1s = np.linalg.norm(diff, ord=1, axis=-1)
+            _l2s = np.linalg.norm(diff, ord=2, axis=-1)
+            _criteria = _l1s < self.smooth_l1_beta
 
-        _best_smooth_l1s_index = np.argmin(_smooth_l1s)
-        _best_smooth_l1 = {
-            'value': _smooth_l1s[_best_smooth_l1s_index],
-            'match': _best_smooth_l1s_index
-        }
+            _smooth_l1s = 0
+            _smooth_l1s = _smooth_l1s + _criteria * 0.5 * _l2s / self.smooth_l1_beta
+            _smooth_l1s = _smooth_l1s + (~_criteria) * (_l1s - 0.5 * self.smooth_l1_beta)
+
+            _best_smooth_l1s_index = np.argmin(_smooth_l1s)
+            _best_smooth_l1 = {
+                'value': _smooth_l1s[_best_smooth_l1s_index],
+                'match': _best_smooth_l1s_index
+            }
+
+        else:
+
+            _best_smooth_l1 = {
+                'value': np.inf,
+                'match': None
+            }
 
         return _best_smooth_l1
 
