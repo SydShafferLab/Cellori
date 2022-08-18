@@ -37,7 +37,7 @@ def generate_dataset(path, key, adjustment='normalize',
         image_list = np.asarray(batch_standardize(image_list))
 
     dt = deeptile.load(image_list)
-    tiles1 = dt.get_tiles(tile_size, overlap)
+    tiles1 = dt.get_tiles(tile_size, overlap).pad()
     tiles2 = tiles1.import_data(coords_list, 'coords')
     nonempty_tiles = [(image, coords) for image, coords in
                       zip(np.concatenate(tiles1[tiles1.nonempty_indices]),
