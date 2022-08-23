@@ -5,29 +5,26 @@ from jax import vmap
 from cellori.utils.spots import colocalize_pixels
 
 
-def colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels, weighted_labels):
+def colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels):
 
-    vmap_colocalization_loss = vmap(_colocalization_loss, in_axes=(0, 0, 0, 0, 0, 0))
-    cl_sl1, cl_bcel, cl_invf1 = vmap_colocalization_loss(deltas_pred, labels_pred,
-                                                         deltas, labels, dilated_labels, weighted_labels)
+    vmap_colocalization_loss = vmap(_colocalization_loss, in_axes=(0, 0, 0, 0, 0))
+    cl_sl1, cl_bcel, cl_invf1 = vmap_colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels)
 
     return np.mean(cl_sl1), np.mean(cl_bcel), np.mean(cl_invf1)
 
 
-def _colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels, weighted_labels):
+def _colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels):
 
     labels_pred = labels_pred[:, :, 0]
     labels = labels[:, :, 0]
     dilated_labels = dilated_labels[:, :, 0]
-    weighted_labels = weighted_labels[:, :, 0]
 
-    cl_sl1 = np.sum(dilated_labels * smooth_l1(deltas_pred, deltas)) / np.sum(dilated_labels)
+    cl_sl1 = np.sum(smooth_l1(deltas_pred, deltas) * dilated_labels) / np.sum(dilated_labels)
     cl_bcel = binary_cross_entropy_loss(labels_pred, labels, weighted=True)
 
-    counts = colocalize_pixels(deltas_pred * labels_pred[:, :, None])
-    counts = counts + labels_pred - 1
+    counts = colocalize_pixels(deltas_pred * dilated_labels[:, :, None], labels_pred)
 
-    tp = np.sum(weighted_labels * counts)
+    tp = np.sum(dilated_labels * counts)
     fp = np.sum(labels_pred) - tp
 
     num_captured = np.sum(labels_pred * labels)

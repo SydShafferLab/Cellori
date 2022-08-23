@@ -18,8 +18,8 @@ from cellori.utils.losses import colocalization_loss
 def compute_metrics(poly_features, batch, loss_weights):
     deltas_pred, labels_pred = poly_features
 
-    sl1l, bcel, invf1 = colocalization_loss(deltas_pred, labels_pred, batch['deltas'], batch['labels'],
-                                            batch['dilated_labels'], batch['weighted_labels'])
+    sl1l, bcel, invf1 = colocalization_loss(deltas_pred, labels_pred,
+                                            batch['deltas'], batch['labels'], batch['dilated_labels'])
     loss = loss_weights['sl1l'] * sl1l + loss_weights['bcel'] * bcel + loss_weights['invf1'] * invf1
     metrics = {
         'sl1l': sl1l,
