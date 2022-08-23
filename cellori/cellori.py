@@ -163,50 +163,48 @@ class _CelloriSpots(CelloriSpots):
 
             x = np.expand_dims(x, axis=-1)
             deltas, labels = self.model.apply(self.variables, x, False)
-            y = np.concatenate((deltas, labels), axis=-1)
+            counts = spots.vmap_colocalize_pixels(deltas, labels[:, :, :, 0])
+            y = np.concatenate((deltas, labels, counts[:, :, :, None]), axis=-1)
             y = np.moveaxis(y, -1, 1)
 
             return y
 
         def process(tiles):
 
-            tiles = tiles.compute()
             y = jitted(tiles)
             y = onp.asarray(y)
 
             return y
 
-        jitted(np.zeros((self.batch_size, 256, 256)))
+        process(np.zeros((self.batch_size, 256, 256)))
         self.process = process
 
         def postprocess(tile, min_distance, threshold):
 
-            deltas = np.moveaxis(tile[:2], 0, -1)
-            labels = np.moveaxis(tile[2:3], 0, -1)
-            coords, adjusted_counts = spots.compute_spot_coordinates(deltas, labels,
-                                                                     min_distance=min_distance, threshold=threshold)
+            deltas = onp.moveaxis(tile[:2], 0, -1)
+            counts = tile[3]
+            coords = spots.compute_spot_coordinates(deltas, counts, min_distance=min_distance, threshold=threshold)
             coords = Output(coords, isimage=False, stackable=False)
 
-            return coords, adjusted_counts
+            return coords
 
-        dummy_output = onp.zeros((3, 256, 256))
-        dummy_output[2, 0, 0] = 1
-        postprocess(dummy_output, 1, 0.75)
-        del dummy_output
         self.postprocess = postprocess
 
     def predict(self, x, scale=1, min_distance=1, threshold=1.5):
 
         x, shape, batch_axis = self.preprocess(x, scale, normalize=True)
 
-        dt = deeptile.load(x, link_data=False)
-        tiles = dt.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1)).pad()
+        dt = deeptile.load(x, link_data=False, dask=False)
+        tiles = dt.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1)).pad(mode='reflect')
         tiles = lift(self.process,
                      vectorized=True, batch_axis=batch_axis, pad_final_batch=True, batch_size=self.batch_size)(tiles)
-        coords, y = lift(partial(self.postprocess,
-                                 min_distance=min_distance, threshold=threshold), batch_axis=batch_axis)(tiles)
+        y = stitch.stitch_image(tiles)
+
+        dt2 = deeptile.load(y, link_data=False, dask=False)
+        tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1))
+        coords = lift(partial(self.postprocess,
+                              min_distance=min_distance, threshold=threshold), batch_axis=batch_axis)(tiles2)
         coords = stitch.stitch_coords(coords)
-        y = stitch.stitch_image(y)
 
         if scale != 1:
             scales = (onp.array(y.shape[-2:]) - 1) / (onp.array(shape[-2:]) - 1)
