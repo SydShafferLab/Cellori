@@ -149,19 +149,15 @@ def transform_batch(batch, coords_pad_length=None, num_label_dilations=1):
     deltas, labels, _ = subpixel_distance_transform(coords, coords_pad_length, output_shape)
     labels = np.asarray(labels)
     dilated_labels = []
-    weighted_labels = []
 
     if num_label_dilations > 0:
         for label in labels:
             dilated_label = ndimage.binary_dilation(label, structure=np.ones((3, 3, 1), dtype=bool),
                                                     iterations=num_label_dilations)
-            weighted_label = 0.5 * label + 0.5 * dilated_label
             dilated_labels.append(dilated_label)
-            weighted_labels.append(weighted_label)
 
     batch['deltas'] = deltas
     batch['labels'] = labels
     batch['dilated_labels'] = np.stack(dilated_labels)
-    batch['weighted_labels'] = np.stack(weighted_labels)
 
     return batch
