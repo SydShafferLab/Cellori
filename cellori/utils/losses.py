@@ -109,14 +109,25 @@ def smooth_l1(y_pred, y_true, beta=0.1):
 
 def binary_cross_entropy_loss(p, labels, weighted=False):
     if weighted:
-        class_sums = np.array([np.sum(labels), np.sum(~labels)])
-        beta = 2 * (1 - class_sums[0] / class_sums.sum())
+        beta = np.sum(~labels) / (np.sum(labels) + 1)
     else:
         beta = 1
 
-    cel = -np.mean(beta * np.log(p + 1e-7) * labels + (2 - beta) * np.log((1 - p) + 1e-7) * (1 - labels))
+    bcel = -np.mean(beta * np.log(p + 1e-7) * labels + np.log((1 - p) + 1e-7) * (1 - labels))
 
-    return cel
+    return bcel
+
+
+def binary_focal_loss(p, labels, gamma=2, weighted=False):
+    if weighted:
+        beta = np.sum(~labels) / (np.sum(labels) + 1)
+    else:
+        beta = 1
+
+    bfl = -np.mean(beta * (1 - p) ** gamma * np.log(p + 1e-7) * labels +
+                   p ** gamma * np.log((1 - p) + 1e-7) * (1 - labels))
+
+    return bfl
 
 
 def cross_entropy_loss(p, labels, alpha=0):
@@ -130,7 +141,7 @@ def cross_entropy_loss(p, labels, alpha=0):
     return cel
 
 
-def focal_loss(p, labels, gamma, alpha=0):
+def focal_loss(p, labels, gamma=2, alpha=0):
     if alpha > 0:
         beta = _calculate_class_weights(labels, alpha).reshape(1, 1, -1)
     else:
