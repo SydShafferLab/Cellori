@@ -9,8 +9,8 @@ from cellori.utils.transforms import batch_normalize, batch_standardize, RandomA
 
 
 def generate_dataset(path, key, adjustment='normalize',
-                     tile_size=(256, 256), overlap=(0.1, 0.1), min_spots=1,
-                     train_size=0.8, valid_size=0.1):
+                     tile_size=(256, 256), overlap=(0, 0), min_spots=3,
+                     train_size=0.70, valid_size=0.15):
 
     image_list = []
     coords_list = []
@@ -111,7 +111,7 @@ def load_datasets(path):
     return ds
 
 
-def transform_dataset(ds, key, output_shape=(256, 256), min_spots=1):
+def transform_dataset(ds, key, output_shape=(256, 256), min_spots=3):
 
     base_scales = np.ones(len(ds['images']))
 
