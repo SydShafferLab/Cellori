@@ -1,7 +1,62 @@
+import jax.numpy as np
+from einops import rearrange
+from functools import partial
 from flax import linen as nn
+from jax import image
 from typing import Any, Callable, Tuple
 
 ModuleDef = Any
+
+
+class UpConvBlock(nn.Module):
+
+    conv: ModuleDef = nn.Conv
+    convt: ModuleDef = nn.ConvTranspose
+    features: int = None
+    upsample: str = 'interpolate'
+    name: str = None
+
+    @nn.compact
+    def __call__(self, x):
+
+        if self.features is None:
+            features = x.shape[-1]
+        else:
+            features = self.features
+
+        if self.upsample == 'interpolate':
+            shape = (x.shape[0], 2 * x.shape[1], 2 * x.shape[2], x.shape[3])
+            x = image.resize(x, shape=shape, method='nearest')
+            x = self.conv(
+                features=features,
+                kernel_size=(3, 3),
+                name='upsample_conv'
+            )(x)
+        elif self.upsample == 'conv':
+            x = self.convt(
+                features=features,
+                kernel_size=(3, 3),
+                strides=(2, 2),
+                padding='SAME',
+                name='upsample_convt'
+            )(x)
+
+        return x
+
+
+class PixelShuffle(nn.Module):
+    scale_factor: int
+
+    def setup(self):
+        self.layer = partial(
+            rearrange,
+            pattern="b h w (h2 w2 c) -> b (h h2) (w w2) c",
+            h2=self.scale_factor,
+            w2=self.scale_factor
+        )
+
+    def __call__(self, x: np.ndarray) -> np.ndarray:
+        return self.layer(x)
 
 
 class MBConvBlock(nn.Module):
@@ -166,3 +221,69 @@ class FusedMBConvBlock(nn.Module):
             x = x + residual
 
         return x
+
+
+class FeatureTextureTransfer(nn.Module):
+    conv: ModuleDef
+    norm: ModuleDef
+    act: Callable = nn.swish
+    repeats: int = 4
+    expand_ratio: int = 4
+    kernel_size: Tuple[int, int] = (3, 3)
+    strides: Tuple[int, int] = (1, 1)
+    se_ratio: float = 0.25
+    dropout_rate: float = 0.2
+    deterministic: bool = False
+    name: str = None
+
+    @nn.compact
+    def __call__(self, p2, p3):
+
+        # Content Extractor
+        input_filters = p3.shape[-1]
+        output_filters = p3.shape[-1] * 4
+        for i in range(self.repeats):
+            p3 = MBConvBlock(
+                conv=self.conv,
+                norm=self.norm,
+                act=self.act,
+                input_filters=input_filters,
+                output_filters=output_filters,
+                expand_ratio=self.expand_ratio,
+                kernel_size=self.kernel_size,
+                strides=self.strides,
+                se_ratio=self.se_ratio,
+                dropout_rate=self.dropout_rate,
+                deterministic=self.deterministic,
+                name='content_extractor{}'.format(i + 1)
+            )(p3)
+
+        # Subpixel convolution
+        p3 = PixelShuffle(
+            scale_factor=2
+        )(p3)
+
+        p3p = np.concatenate((p2, p3), axis=-1)
+
+        # Texture Extractor
+        input_filters = p3p.shape[-1]
+        output_filters = round(p3p.shape[-1] / 2)
+        for i in range(self.repeats):
+            p3p = MBConvBlock(
+                conv=self.conv,
+                norm=self.norm,
+                act=self.act,
+                input_filters=input_filters,
+                output_filters=output_filters,
+                expand_ratio=self.expand_ratio,
+                kernel_size=self.kernel_size,
+                strides=self.strides,
+                se_ratio=self.se_ratio,
+                dropout_rate=self.dropout_rate,
+                deterministic=self.deterministic,
+                name='texture_extractor{}'.format(i + 1)
+            )(p3p)
+
+        p3p = p3p + p3
+
+        return p3p

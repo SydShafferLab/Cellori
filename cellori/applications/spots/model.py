@@ -79,6 +79,7 @@ OriginFPN = partial(
     backbone_levels={'C1', 'C2', 'C3', 'C4'},
     backbone_args={'stem_strides': 1},
     add_styles=True,
+    ftt=False,
     upsample='interpolate',
     aggregate_mode='sum',
     final_shape=(256, 256)

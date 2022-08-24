@@ -6,37 +6,9 @@ from functools import partial
 from jax import image
 from typing import Any, Callable, Tuple
 
+from .conv_blocks import FeatureTextureTransfer, UpConvBlock
+
 ModuleDef = Any
-
-
-class UpConvBlock(nn.Module):
-
-    conv: ModuleDef = nn.Conv
-    convt: ModuleDef = nn.ConvTranspose
-    upsample: str = 'interpolate'
-    name: str = None
-
-    @nn.compact
-    def __call__(self, x):
-
-        if self.upsample == 'interpolate':
-            shape = (x.shape[0], 2 * x.shape[1], 2 * x.shape[2], x.shape[3])
-            x = image.resize(x, shape=shape, method='nearest')
-            x = self.conv(
-                features=x.shape[-1],
-                kernel_size=(3, 3),
-                name='upsample_conv'
-            )(x)
-        elif self.upsample == 'conv':
-            x = self.convt(
-                features=x.shape[-1],
-                kernel_size=(3, 3),
-                strides=(2, 2),
-                padding='SAME',
-                name='upsample_convt'
-            )(x)
-
-        return x
 
 
 class FPNBlock(nn.Module):
@@ -88,6 +60,7 @@ class FPN(nn.Module):
     backbone_levels: list = field(default_factory=list)
     backbone_args: dict = field(default_factory=dict)
     add_styles: bool = False
+    ftt: bool = False
     upsample: str = 'interpolate'
     aggregate_mode: str = 'sum'
     final_shape: Tuple[int, int] = (256, 256)
@@ -130,15 +103,39 @@ class FPN(nn.Module):
         features.append(f)
 
         # Run FPNBlock for remaining pyramid levels
-        for backbone_level in backbone_levels[1:]:
+        if self.ftt:
+            for backbone_level in backbone_levels[1:-1]:
+                f = FPNBlock(
+                    conv=conv,
+                    norm=norm,
+                    act=self.act,
+                    upsample=self.upsample,
+                    name='P{}_block'.format(backbone_level[1:])
+                )(f, outputs[backbone_level][0], styles)
+                features.append(f)
+            f = FeatureTextureTransfer(
+                conv=conv,
+                norm=norm,
+                act=self.act,
+            )(features[-1], features[-2])
             f = FPNBlock(
                 conv=conv,
                 norm=norm,
                 act=self.act,
                 upsample=self.upsample,
-                name='P{}_block'.format(backbone_level[1:])
-            )(f, outputs[backbone_level][0], styles)
+                name='P{}_block'.format('C1')
+            )(f, outputs['C1'][0], styles)
             features.append(f)
+        else:
+            for backbone_level in backbone_levels[1:]:
+                f = FPNBlock(
+                    conv=conv,
+                    norm=norm,
+                    act=self.act,
+                    upsample=self.upsample,
+                    name='P{}_block'.format(backbone_level[1:])
+                )(f, outputs[backbone_level][0], styles)
+                features.append(f)
 
         # Resize feature maps
         for i in range(len(features[:-1])):
