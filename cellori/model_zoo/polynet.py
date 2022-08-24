@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from flax import linen as nn
 from functools import partial
 from typing import Any, Callable, Tuple
@@ -41,7 +42,7 @@ class PolyNet(nn.Module):
     fpn: ModuleDef
     conv: ModuleDef = nn.Conv
     norm: ModuleDef = nn.BatchNorm
-    semantic_heads: Tuple[Tuple[int, ModuleDef]] = ((2, None), (1, nn.sigmoid))
+    semantic_heads: Tuple = ((2, None), (1, nn.sigmoid))
     return_agg: bool = False
 
     @nn.compact
@@ -66,14 +67,30 @@ class PolyNet(nn.Module):
         poly_features = []
 
         # Process aggregate feature map through poly heads
-        for i, (num_classes, act_final) in enumerate(self.semantic_heads):
-            f = PolyHead(
-                conv=conv,
-                norm=norm,
-                act_final=act_final,
-                num_classes=num_classes,
-                name='poly{}_head'.format(i + 1)
-            )(agg_features)
+        for i, semantic_head in enumerate(self.semantic_heads):
+
+            name = 'poly{}_head'.format(i + 1)
+
+            if isinstance(semantic_head, Sequence):
+
+                num_classes, act_final = semantic_head
+
+                f = PolyHead(
+                    conv=conv,
+                    norm=norm,
+                    act_final=act_final,
+                    num_classes=num_classes,
+                    name=name
+                )(agg_features)
+
+            else:
+
+                f = semantic_head(
+                    conv=conv,
+                    norm=norm,
+                    name=name
+                )(agg_features)
+
             poly_features.append(f)
 
         if self.return_agg:
