@@ -153,12 +153,12 @@ def build_efficientnetv2(
 
         blocks_args.append(block_args)
 
-        model = partial(
-            EfficientNetV2,
-            blocks_args=blocks_args,
-            default_size=default_size,
-            name=model_name
-        )
+    model = partial(
+        EfficientNetV2,
+        blocks_args=blocks_args,
+        default_size=default_size,
+        name=model_name
+    )
 
     return model
 

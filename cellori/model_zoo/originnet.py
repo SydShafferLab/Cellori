@@ -61,12 +61,12 @@ def build_originnet(
 
         blocks_args.append(block_args)
 
-        model = partial(
-            OriginNet,
-            blocks_args=blocks_args,
-            default_size=default_size,
-            name=model_name
-        )
+    model = partial(
+        OriginNet,
+        blocks_args=blocks_args,
+        default_size=default_size,
+        name=model_name
+    )
 
     return model
 
