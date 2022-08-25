@@ -1,13 +1,125 @@
 import numpy as np
+import pandas as pd
 
+from collections.abc import Iterable
 from functools import cached_property
 from skimage import measure
-from scipy import ndimage, stats
+from scipy import integrate, ndimage, optimize, spatial, stats
 
 from cellori.utils import dynamics
 
 
-class SpotMetrics:
+class SpotsMetrics:
+
+    def __init__(self, y_true, y_pred):
+
+        self.y_true = y_true
+        self.y_pred = y_pred
+        self.distance_matrices = {}
+
+    def calculate(self, agg_metric='f1', distance_metric='euclidean', thresholds=np.linspace(0, 3, 50)):
+
+        if not isinstance(thresholds, Iterable):
+            thresholds = [thresholds]
+
+        agg_list = []
+        deltas_list = []
+        offsets_list = []
+
+        for threshold in thresholds:
+            agg, deltas, offsets = self._calculate(agg_metric, distance_metric, threshold)
+            agg_list.append(agg)
+            deltas_list.append(deltas)
+            offsets_list.append(offsets)
+
+        if len(thresholds) > 1:
+            agg = integrate.trapz(agg_list, thresholds) / np.ptp(thresholds)
+        else:
+            agg = agg_list[0]
+        flattened_offsets_list = [offset for offsets in offsets_list for offset in offsets]
+        if len(flattened_offsets_list) > 0:
+            offset = np.mean([offset for offsets in offsets_list for offset in offsets])
+        else:
+            offset = 0.0
+        deltas_list = [np.array(deltas) for deltas in deltas_list]
+        offset_list = [np.mean(offsets) if len(offsets) > 0 else 0.0 for offsets in offsets_list]
+
+        df = pd.DataFrame(
+            {
+                "thresholds": thresholds,
+                "agg": agg_list,
+                "deltas": deltas_list,
+                "offset": offset_list,
+            }
+        )
+
+        return agg, offset, df
+
+    def _calculate(self, agg_metric, distance_metric, threshold):
+
+        tp, fp, fn, matches = self._get_probabilities(distance_metric, threshold)
+
+        agg = None
+
+        if agg_metric == 'f1':
+
+            precision = tp / np.max((tp + fp, 1e-7))
+            recall = tp / np.max((tp + fn, 1e-7))
+            agg = 2 * precision * recall / np.max((precision + recall, 1e-7))
+
+        deltas = self.y_true[matches[0]] - self.y_pred[matches[1]]
+        offsets = self.distance_matrices[distance_metric][matches]
+
+        return agg, deltas, offsets
+
+    def _get_distance_matrix(self, distance_metric):
+
+        if distance_metric in self.distance_matrices.keys():
+            distance_matrix = self.distance_matrices[distance_metric]
+        else:
+            distance_matrix = spatial.distance.cdist(self.y_true, self.y_pred)
+            self.distance_matrices[distance_metric] = distance_matrix
+
+        return distance_matrix
+
+    def _get_probabilities(self, distance_metric, threshold):
+
+        distance_matrix = self._get_distance_matrix(distance_metric)
+
+        y_true_matches = linear_sum_assignment(distance_matrix, threshold)
+        y_pred_matches = linear_sum_assignment(distance_matrix.T, threshold)
+
+        tp = len(y_true_matches[0])
+        fp = len(self.y_pred) - len(y_pred_matches[0])
+        fn = len(self.y_true) - len(y_true_matches[0])
+
+        return tp, fp, fn, y_true_matches
+
+    def _get_offsets(self, distance_metric, matches):
+
+        offsets = self.distance_matrices[distance_metric][matches]
+
+        return offsets
+
+
+def linear_sum_assignment(cost_matrix, threshold):
+
+    if cost_matrix.size == 0:
+
+        matches = []
+
+    else:
+
+        if threshold is not None:
+            cost_matrix = np.where(cost_matrix > threshold, cost_matrix.max(), cost_matrix)
+        matches = optimize.linear_sum_assignment(cost_matrix)
+        below_threshold = [i for i, match in enumerate(zip(*matches)) if cost_matrix[match] <= threshold]
+        matches = (matches[0][below_threshold], matches[1][below_threshold])
+
+    return matches
+
+
+class SpotMetricsLegacy:
 
     def __init__(self, y_true, y_single_pred, id_pred, **kwargs):
 
@@ -95,7 +207,7 @@ class SpotMetrics:
         return _best_smooth_l1
 
 
-class SpotsMetrics:
+class SpotsMetricsLegacy:
 
     def __init__(self, y_true, y_pred, **kwargs):
 
@@ -103,7 +215,7 @@ class SpotsMetrics:
         self.y_pred = y_pred
 
         self._spot_metrics = [
-            SpotMetrics(y_true, y_single_pred, i, **kwargs) for i, y_single_pred in enumerate(y_pred)
+            SpotMetricsLegacy(y_true, y_single_pred, i, **kwargs) for i, y_single_pred in enumerate(y_pred)
         ]
 
     def calculate(self, agg_metric, match_metric, threshold):
@@ -237,7 +349,8 @@ class RegionMetrics:
         self.id_pred = id_pred
 
         self._pixel_metrics = [
-            PixelMetrics(y_true == region.label, y_pred, region.label, id_pred) for region in measure.regionprops(y_true)
+            PixelMetrics(y_true == region.label, y_pred, region.label, id_pred)
+            for region in measure.regionprops(y_true)
         ]
 
     @cached_property
