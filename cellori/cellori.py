@@ -148,7 +148,7 @@ class CelloriSpots:
 
 class _CelloriSpots(CelloriSpots):
 
-    def __init__(self, model, batch_size=8):
+    def __init__(self, model='spots', batch_size=8):
 
         from cellori.applications.spots.model import CelloriSpotsModel
         from cellori.utils import spots
@@ -216,7 +216,7 @@ class _CelloriSpots(CelloriSpots):
 
 class _CelloriLoG(CelloriSpots):
 
-    def __init__(self, model, batch_size=None):
+    def __init__(self, model='LoG', batch_size=None):
 
         from cellori.applications.spots import baseline
 
