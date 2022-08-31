@@ -6,7 +6,7 @@ from jax.lax import dynamic_slice
 from skimage import feature
 
 
-def compute_spot_coordinates(deltas, counts, min_distance=1, threshold=1.5):
+def compute_spot_coordinates(deltas, counts, min_distance=1, threshold=2.0):
 
     counts = onp.asarray(counts)
     peaks = feature.peak_local_max(counts, min_distance=min_distance, threshold_abs=threshold, exclude_border=False)
