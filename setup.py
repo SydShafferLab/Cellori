@@ -13,7 +13,7 @@ setup(
     long_description_content_type="text/markdown",
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),
-    install_requires=['einops', 'fastremap', 'flax', 'imageio', 'numba', 'numpy', 'opencv-python', 'pandas',
+    install_requires=['deeptile', 'einops', 'fastremap', 'flax', 'imageio', 'numba', 'numpy', 'opencv-python', 'pandas',
                       'scikit-image', 'scipy', 'tifffile', 'torch', 'tqdm'],
     include_package_data=True,
     keywords=["segmentation"],
