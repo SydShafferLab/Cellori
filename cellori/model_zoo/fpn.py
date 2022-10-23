@@ -88,7 +88,7 @@ class FPN(nn.Module):
 
         if self.add_styles:
             styles = np.sum(final_output, axis=(1, 2))
-            styles = styles / np.linalg.norm(styles)
+            styles = styles / np.linalg.norm(styles, axis=1)[:, None]
         else:
             styles = None
 
