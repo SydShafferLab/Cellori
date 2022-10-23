@@ -3,18 +3,27 @@ import numpy as onp
 
 from jax import vmap
 from jax.lax import dynamic_slice
-from skimage import feature
+from skimage import feature, measure
 
 
-def compute_spot_coordinates(deltas, counts, min_distance=1, threshold=2.0):
+def compute_spot_coordinates(deltas, counts, threshold, min_distance):
 
+    stack = counts.ndim == 3
     counts = onp.asarray(counts)
-    peaks = feature.peak_local_max(counts, min_distance=min_distance, threshold_abs=threshold, exclude_border=False)
-    num_peaks = len(peaks)
-    if num_peaks > 0:
-        coords = peaks + onp.asarray(deltas)[peaks[:, 0], peaks[:, 1]]
+
+    if stack:
+        labels = measure.label(counts > threshold)
+        peaks = onp.array([region['centroid'] for region in measure.regionprops(labels)], dtype=int)
     else:
-        coords = onp.empty((0, 2), dtype=onp.float32)
+        peaks = feature.peak_local_max(counts, min_distance=min_distance, threshold_abs=threshold, exclude_border=False)
+
+    if len(peaks) > 0:
+        if stack:
+            coords = peaks + onp.pad(onp.asarray(deltas)[peaks[:, 0], peaks[:, 1], peaks[:, 2]], ((0, 0), (1, 0)))
+        else:
+            coords = peaks + onp.asarray(deltas)[peaks[:, 0], peaks[:, 1]]
+    else:
+        coords = onp.empty((0, counts.ndim), dtype=onp.float32)
 
     return coords
 

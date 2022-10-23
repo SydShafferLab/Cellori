@@ -123,25 +123,30 @@ class CelloriSpots:
         return model
 
     @staticmethod
-    def preprocess(x, scale, normalize):
+    def preprocess(x, stack, scale, normalize):
 
         shape = x.shape
         ndim = x.ndim
 
+        if stack:
+            nnormdim = 3
+        else:
+            nnormdim = 2
+
+        if ndim == nnormdim:
+            batch_axis = False
+        elif ndim == nnormdim + 1:
+            batch_axis = True
+        else:
+            raise ValueError("Input does not have the correct dimensions.")
+
         if scale != 1:
             x = resize(x, (*shape[:-2], round(shape[-2] * scale), round(shape[-1] * scale)))
 
-        if ndim == 2:
-            batch_axis = False
-            if normalize:
-                x = (x - onp.min(x)) / (onp.ptp(x) + 1e-7)
-        elif ndim == 3:
-            batch_axis = True
-            if normalize:
-                x = (x - onp.min(x, axis=(1, 2)).reshape((-1, 1, 1))) / \
-                    (onp.ptp(x, axis=(1, 2)).reshape((-1, 1, 1)) + 1e-7)
-        else:
-            raise ValueError("Input does not have the correct dimensions.")
+        if normalize:
+            axis = tuple(range(ndim - nnormdim, ndim))
+            stat_shape = (*x.shape[:-nnormdim], *((1, ) * nnormdim))
+            x = (x - onp.min(x, axis=axis).reshape(stat_shape)) / (onp.ptp(x, axis=axis).reshape(stat_shape) + 1e-7)
 
         return x, shape, batch_axis
 
@@ -179,26 +184,33 @@ class _CelloriSpots(CelloriSpots):
         process(np.zeros((self.batch_size, 256, 256)))
         self.process = process
 
-        def postprocess(tile, min_distance, threshold):
+        def postprocess(tile, threshold, min_distance):
 
-            deltas = onp.moveaxis(tile[:2], 0, -1)
-            counts = tile[3]
-            coords = spots.compute_spot_coordinates(deltas, counts, min_distance=min_distance, threshold=threshold)
+            deltas = onp.moveaxis(tile[..., :2, :, :], -3, -1)
+            counts = tile[..., 3, :, :]
+            coords = spots.compute_spot_coordinates(deltas, counts, threshold=threshold, min_distance=min_distance)
             coords = Output(coords, isimage=False, stackable=False)
 
             return coords
 
         self.postprocess = postprocess
 
-    def predict(self, x, scale=1, min_distance=1, threshold=1.5):
+    def predict(self, x, stack=False, scale=1, threshold=2.5, min_distance=1):
 
-        x, shape, batch_axis = self.preprocess(x, scale, normalize=True)
+        x, shape, batch_axis = self.preprocess(x, stack, scale, normalize=True)
 
         dt = deeptile.load(x, link_data=False, dask=False)
         tiles = dt.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1)).pad(mode='reflect')
-        tiles = lift(self.process,
-                     vectorized=True, batch_axis=batch_axis, pad_final_batch=True, batch_size=self.batch_size)(tiles)
+
+        if stack:
+            tiles = onp.reshape(tiles, (-1, 256, 256))
+
+        tiles = lift(self.process, vectorized=True, batch_axis=batch_axis or stack, pad_final_batch=True,
+                     batch_size=self.batch_size)(tiles)
         y = stitch.stitch_image(tiles)
+
+        if stack:
+            y = y.reshape(*shape[:-2], *y.shape[-3:])
 
         dt2 = deeptile.load(y, link_data=False, dask=False)
         tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1))
@@ -209,7 +221,7 @@ class _CelloriSpots(CelloriSpots):
         if scale != 1:
             scales = (onp.array(y.shape[-2:]) - 1) / (onp.array(shape[-2:]) - 1)
             for i in range(len(coords)):
-                coords[i] = (coords[i]) / scales
+                coords[i][-2:] = (coords[i][-2:]) / scales
 
         return coords, y
 
@@ -233,33 +245,40 @@ class _CelloriLoG(CelloriSpots):
 
         self.process = process
 
-        def postprocess(tile, min_distance, threshold):
+        def postprocess(tile, threshold, min_distance):
 
-            coords = baseline.threshold_local_max(tile, min_distance=min_distance, threshold=threshold)
+            coords = baseline.compute_spot_coordinates(tile, threshold=threshold, min_distance=min_distance)
             coords = Output(coords, isimage=False, stackable=False)
 
             return coords
 
         self.postprocess = postprocess
 
-    def predict(self, x, scale=1, sigma=1, min_distance=1, threshold=0.05):
+    def predict(self, x, stack=False, scale=1, sigma=1, threshold=0.05, min_distance=1):
 
-        x, shape, batch_axis = self.preprocess(x, scale, normalize=True)
+        x, shape, batch_axis = self.preprocess(x, stack, scale, normalize=True)
 
         dt = deeptile.load(x, link_data=False)
         tiles = dt.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1))
+
+        if stack:
+            tiles = lift(lambda tile: tile.reshape(-1, *tile.shape[-2:]))(tiles)
+
         tiles = lift(partial(self.process, sigma=sigma), batch_axis=batch_axis)(tiles)
         y = stitch.stitch_image(tiles)
 
-        dt2 = deeptile.load(y, link_data=False)
-        tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1)).compute()
-        tiles2 = lift(partial(self.postprocess,
-                              min_distance=min_distance, threshold=threshold), batch_axis=batch_axis)(tiles2)
-        coords = stitch.stitch_coords(tiles2)
+        if stack:
+            y = y.reshape(*shape[:-2], *y.shape[-2:])
+
+        dt2 = deeptile.load(y, link_data=False, dask=False)
+        tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1))
+        coords = lift(partial(self.postprocess,
+                              threshold=threshold, min_distance=min_distance), batch_axis=batch_axis)(tiles2)
+        coords = stitch.stitch_coords(coords)
 
         if scale != 1:
             scales = (onp.array(y.shape[-2:]) - 1) / (onp.array(shape[-2:]) - 1)
             for i in range(len(coords)):
-                coords[i] = (coords[i]) / scales
+                coords[i][-2:] = (coords[i][-2:]) / scales
 
         return coords, y
