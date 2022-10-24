@@ -197,6 +197,23 @@ class _CelloriSpots(CelloriSpots):
 
     def predict(self, x, stack=False, scale=1, threshold=2.5, min_distance=1):
 
+        y, shape, batch_axis = self._predict(x, stack, scale)
+
+        dt = deeptile.load(y, link_data=False, dask=False)
+        tiles = dt.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1))
+        coords = lift(partial(self.postprocess,
+                              min_distance=min_distance, threshold=threshold), batch_axis=batch_axis)(tiles)
+        coords = stitch.stitch_coords(coords)
+
+        if scale != 1:
+            scales = (onp.array(y.shape[-2:]) - 1) / (onp.array(shape[-2:]) - 1)
+            for i in range(len(coords)):
+                coords[i][-2:] = (coords[i][-2:]) / scales
+
+        return coords, y
+
+    def _predict(self, x, stack, scale):
+
         x, shape, batch_axis = self.preprocess(x, stack, scale, normalize=True)
 
         dt = deeptile.load(x, link_data=False, dask=False)
@@ -212,18 +229,7 @@ class _CelloriSpots(CelloriSpots):
         if stack:
             y = y.reshape(*shape[:-2], *y.shape[-3:])
 
-        dt2 = deeptile.load(y, link_data=False, dask=False)
-        tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1))
-        coords = lift(partial(self.postprocess,
-                              min_distance=min_distance, threshold=threshold), batch_axis=batch_axis)(tiles2)
-        coords = stitch.stitch_coords(coords)
-
-        if scale != 1:
-            scales = (onp.array(y.shape[-2:]) - 1) / (onp.array(shape[-2:]) - 1)
-            for i in range(len(coords)):
-                coords[i][-2:] = (coords[i][-2:]) / scales
-
-        return coords, y
+        return y, shape, batch_axis
 
 
 class _CelloriLoG(CelloriSpots):
@@ -256,6 +262,23 @@ class _CelloriLoG(CelloriSpots):
 
     def predict(self, x, stack=False, scale=1, sigma=1, threshold=0.05, min_distance=1):
 
+        y, shape, batch_axis = self._predict(x, stack, scale, sigma)
+
+        dt = deeptile.load(y, link_data=False, dask=False)
+        tiles = dt.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1))
+        coords = lift(partial(self.postprocess,
+                              threshold=threshold, min_distance=min_distance), batch_axis=batch_axis)(tiles)
+        coords = stitch.stitch_coords(coords)
+
+        if scale != 1:
+            scales = (onp.array(y.shape[-2:]) - 1) / (onp.array(shape[-2:]) - 1)
+            for i in range(len(coords)):
+                coords[i][-2:] = (coords[i][-2:]) / scales
+
+        return coords, y
+
+    def _predict(self, x, stack, scale, sigma):
+
         x, shape, batch_axis = self.preprocess(x, stack, scale, normalize=True)
 
         dt = deeptile.load(x, link_data=False)
@@ -270,15 +293,4 @@ class _CelloriLoG(CelloriSpots):
         if stack:
             y = y.reshape(*shape[:-2], *y.shape[-2:])
 
-        dt2 = deeptile.load(y, link_data=False, dask=False)
-        tiles2 = dt2.get_tiles(tile_size=(256, 256), overlap=(0.1, 0.1))
-        coords = lift(partial(self.postprocess,
-                              threshold=threshold, min_distance=min_distance), batch_axis=batch_axis)(tiles2)
-        coords = stitch.stitch_coords(coords)
-
-        if scale != 1:
-            scales = (onp.array(y.shape[-2:]) - 1) / (onp.array(shape[-2:]) - 1)
-            for i in range(len(coords)):
-                coords[i][-2:] = (coords[i][-2:]) / scales
-
-        return coords, y
+        return y, shape, batch_axis
