@@ -52,6 +52,10 @@ class _CelloriCyto(CelloriSegmentation):
 
         from cellori.applications.cyto.model import CelloriCytoModel
         from cellori.utils import masks
+        from jax.lib import xla_bridge
+
+        if xla_bridge.get_backend().platform == 'cpu':
+            batch_size = 1
 
         self.model_name = model
         self.model = CelloriCytoModel()
@@ -157,6 +161,10 @@ class _CelloriSpots(CelloriSpots):
 
         from cellori.applications.spots.model import CelloriSpotsModel
         from cellori.utils import spots
+        from jax.lib import xla_bridge
+
+        if xla_bridge.get_backend().platform == 'cpu':
+            batch_size = 1
 
         self.model_name = model
         self.model = CelloriSpotsModel()
