@@ -203,7 +203,7 @@ class _CelloriSpots(CelloriSpots):
 
         self.postprocess = postprocess
 
-    def predict(self, x, stack=False, scale=1, threshold=2.5, min_distance=1):
+    def predict(self, x, stack=False, scale=1, threshold=2.0, min_distance=1):
 
         y, shape, batch_axis = self._predict(x, stack, scale)
 
