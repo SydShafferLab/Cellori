@@ -64,3 +64,57 @@ def _search_convergence(convergence, i, j):
               & (j - 0.5 < convergence[:, :, 1]) & (convergence[:, :, 1] < j + 0.5)
 
     return sources
+
+
+def match_coords(coords, i, set_id, coord_set_ids, checked, threshold):
+
+    distances = onp.sqrt(onp.sum((coords[i] - coords) ** 2, axis=1))
+    matches = list(onp.where(distances < threshold)[0])
+    matches.remove(i)
+    for match in matches:
+        coord_set_ids[match] = set_id
+    checked.append(i)
+
+    return matches
+
+
+def remove_duplicate_coords(coords, threshold=1):
+
+    sets = {}
+    coord_set_ids = {i: None for i in range(len(coords))}
+    checked = []
+
+    for i, set_id in coord_set_ids.items():
+
+        if set_id is None:
+
+            set_id = len(sets)
+            coord_set_ids[i] = set_id
+            new_set = [i]
+            sets[set_id] = new_set
+
+            matches = match_coords(coords, i, set_id, coord_set_ids, checked, threshold)
+            new_set.extend(matches)
+            to_check = matches.copy()
+
+            while len(to_check) > 0:
+
+                for j in to_check:
+
+                    matches = match_coords(coords, j, set_id, coord_set_ids, checked, threshold)
+                    to_check.remove(j)
+                    new_matches = set(matches) - set(new_set)
+                    new_set.extend(new_matches)
+                    to_check.extend(new_matches)
+
+                to_check = list(set(to_check) - set(checked))
+
+    new_coords = []
+    for s in sets.values():
+
+        old_coords = coords[list(s)]
+        new_coords.append(onp.mean(old_coords, axis=0))
+
+    new_coords = onp.array(new_coords)
+
+    return new_coords

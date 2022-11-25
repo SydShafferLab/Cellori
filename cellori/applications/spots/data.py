@@ -5,6 +5,7 @@ from jax import random
 from pathlib import Path
 from scipy import ndimage
 
+from cellori.utils.spots import remove_duplicate_coords
 from cellori.utils.transforms import batch_normalize, batch_standardize, RandomAugment, subpixel_distance_transform
 
 
@@ -30,6 +31,9 @@ def generate_dataset(path, key, adjustment='normalize',
 
     image_list = np.concatenate(image_list)
     coords_list = np.concatenate(coords_list, dtype=object)
+
+    for i in range(len(coords_list)):
+        coords_list[i] = remove_duplicate_coords(coords_list[i])
 
     if adjustment == 'normalize':
         image_list = np.asarray(batch_normalize(image_list))
