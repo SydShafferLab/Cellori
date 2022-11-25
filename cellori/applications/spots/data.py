@@ -72,7 +72,7 @@ def generate_dataset(path, key, adjustment='normalize',
     return dataset
 
 
-def load_datasets(path):
+def load_datasets(path, adjustment=None):
 
     train = {'images': [], 'coords': []}
     valid = {'images': [], 'coords': []}
@@ -101,6 +101,15 @@ def load_datasets(path):
     valid['coords'] = np.concatenate(valid['coords'])
     test['images'] = np.concatenate(test['images'])
     test['coords'] = np.concatenate(test['coords'])
+
+    if adjustment == 'normalize':
+        train['images'] = np.asarray(batch_normalize(train['images']))
+        valid['images'] = np.asarray(batch_normalize(valid['images']))
+        test['images'] = np.asarray(batch_normalize(test['images']))
+    elif adjustment == 'standardize':
+        train['images'] = np.asarray(batch_standardize(train['images']))
+        valid['images'] = np.asarray(batch_standardize(valid['images']))
+        test['images'] = np.asarray(batch_standardize(test['images']))
 
     ds = {
         'train': train,
