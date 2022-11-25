@@ -5,22 +5,22 @@ from jax import vmap
 from cellori.utils.spots import colocalize_pixels
 
 
-def colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels):
+def spots_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels):
 
-    vmap_colocalization_loss = vmap(_colocalization_loss, in_axes=(0, 0, 0, 0, 0))
-    cl_sl1, cl_bcel, cl_invf1 = vmap_colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels)
+    vmap_colocalization_loss = vmap(_spots_loss, in_axes=(0, 0, 0, 0, 0))
+    sl_rmse, sl_bcel, sl_smoothf1 = vmap_colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels)
 
-    return np.mean(cl_sl1), np.mean(cl_bcel), np.mean(cl_invf1)
+    return np.mean(sl_rmse), np.mean(sl_bcel), np.mean(sl_smoothf1)
 
 
-def _colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels):
+def _spots_loss(deltas_pred, labels_pred, deltas, labels, dilated_labels):
 
     labels_pred = labels_pred[:, :, 0]
     labels = labels[:, :, 0]
     dilated_labels = dilated_labels[:, :, 0]
 
-    cl_sl1 = np.sum(smooth_l1(deltas_pred, deltas) * dilated_labels) / np.sum(dilated_labels)
-    cl_bcel = binary_cross_entropy_loss(labels_pred, labels, weighted=True)
+    sl_rmse = np.sqrt(np.sum(((deltas - deltas_pred) * dilated_labels[:, :, None]) ** 2) / np.sum(dilated_labels))
+    sl_bcel = binary_cross_entropy_loss(labels_pred, labels, weighted=True)
 
     counts = colocalize_pixels(deltas_pred * dilated_labels[:, :, None], labels_pred)
 
@@ -34,11 +34,9 @@ def _colocalization_loss(deltas_pred, labels_pred, deltas, labels, dilated_label
 
     precision = tp / (tp + fp + 1e-07)
     recall = tp / (tp + fn + 1e-07)
-    f1 = 2 * precision * recall / (precision + recall + 1e-07)
+    sl_smoothf1 = -2 * precision * recall / (precision + recall + 1e-07)
 
-    cl_invf1 = 1 - f1
-
-    return cl_sl1, cl_bcel, cl_invf1
+    return sl_rmse, sl_bcel, sl_smoothf1
 
 
 def discriminative_loss(y_pred, masks, regions, delta=4, alpha=1, beta=1, gamma=0.001):
@@ -87,7 +85,16 @@ def _discriminative_loss(y_pred, mask, regions, delta, alpha, beta, gamma):
     return dl
 
 
+def dice_loss(y_true, y_pred, smooth: int = 1):
+
+    intersection = np.sum(y_true * y_pred)
+    dl = - (2.0 * intersection + smooth) / (np.sum(y_true) + np.sum(y_pred) + smooth)
+
+    return dl
+
+
 def mean_squared_error(y_pred, y_true):
+
     mse = np.mean((y_true - y_pred) ** 2)
 
     return mse

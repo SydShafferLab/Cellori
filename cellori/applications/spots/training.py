@@ -12,19 +12,19 @@ from typing import Any
 
 from cellori.applications.spots.model import CelloriSpotsModel
 from cellori.applications.spots.data import transform_batch, transform_dataset
-from cellori.utils.losses import colocalization_loss
+from cellori.utils.losses import spots_loss
 
 
 def compute_metrics(poly_features, batch, loss_weights):
     deltas_pred, labels_pred = poly_features
 
-    sl1l, bcel, invf1 = colocalization_loss(deltas_pred, labels_pred,
-                                            batch['deltas'], batch['labels'], batch['dilated_labels'])
-    loss = loss_weights['sl1l'] * sl1l + loss_weights['bcel'] * bcel + loss_weights['invf1'] * invf1
+    rmse, bcel, smoothf1 = spots_loss(deltas_pred, labels_pred,
+                                      batch['deltas'], batch['labels'], batch['dilated_labels'])
+    loss = loss_weights['rmse'] * rmse + loss_weights['bcel'] * bcel + loss_weights['smoothf1'] * smoothf1
     metrics = {
-        'sl1l': sl1l,
+        'rmse': rmse,
         'bcel': bcel,
-        'invf1': invf1,
+        'smoothf1': smoothf1,
         'loss': loss
     }
     return metrics
@@ -123,10 +123,10 @@ def train_epoch(epoch, state, train_ds, valid_ds, batch_size, loss_weights, lear
         for k in batch_metrics[0]}
 
     summary = (
-        f"(train) loss: {epoch_metrics['loss']:>6.3f}, sl1l: {epoch_metrics['sl1l']:>6.6f}, "
-        f"bcel: {epoch_metrics['bcel']:>6.6f}, invf1: {epoch_metrics['invf1']:>6.3f}\n"
-        f"(val)   loss: {epoch_metrics['val_loss']:>6.3f}, sl1l: {epoch_metrics['val_sl1l']:>6.6f}, "
-        f"bcel: {epoch_metrics['val_bcel']:>6.6f}, invf1: {epoch_metrics['val_invf1']:>6.3f}\n"
+        f"(train) loss: {epoch_metrics['loss']:>6.3f}, rmse: {epoch_metrics['rmse']:>6.6f}, "
+        f"bcel: {epoch_metrics['bcel']:>6.6f}, smoothf1: {epoch_metrics['smoothf1']:>6.3f}\n"
+        f"(val)   loss: {epoch_metrics['val_loss']:>6.3f}, rmse: {epoch_metrics['val_rmse']:>6.6f}, "
+        f"bcel: {epoch_metrics['val_bcel']:>6.6f}, smoothf1: {epoch_metrics['val_smoothf1']:>6.3f}\n"
     )
     print(summary)
 
