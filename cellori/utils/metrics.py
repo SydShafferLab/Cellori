@@ -67,6 +67,14 @@ class SpotsMetrics:
             recall = tp / np.max((tp + fn, 1e-7))
             agg = 2 * precision * recall / np.max((precision + recall, 1e-7))
 
+        elif agg_metric == 'precision':
+
+            agg = tp / np.max((tp + fp, 1e-7))
+
+        elif agg_metric == 'recall':
+
+            agg = tp / np.max((tp + fn, 1e-7))
+
         deltas = self.y_true[matches[0]] - self.y_pred[matches[1]]
         offsets = self.distance_matrices[distance_metric][matches]
 
